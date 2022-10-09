@@ -1,0 +1,12 @@
+.idea
+alembic/
+alembic.ini
+*/__pycache__/
+**/__pycache__
+
+**/node_modules
+# Cython debug symbols
+cython_debug/
+
+.idea
+.vscode
