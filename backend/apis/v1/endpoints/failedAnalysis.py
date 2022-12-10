@@ -112,8 +112,8 @@ async def get_classes_fun(db:Session,redis_store:Redis):
 async def getStuAnsFromSql(db:Session,redis_store:Redis,select_term_bar,select_class_bar):
     """
     根据选择 从数据库中读取信息
-    :param select_term_bar:
-    :param select_class_bar:
+    :param select_term_bar: 下拉框选中的学期
+    :param select_class_bar: 下拉框中选中的班级
     :return:
     """
 
@@ -124,14 +124,17 @@ async def getStuAnsFromSql(db:Session,redis_store:Redis,select_term_bar,select_c
     else:
         # select标签内容不为空
         term = select_term_bar
-        index = int(select_class_bar)
-        className = await getClass(index,db,redis_store)
+        # index = int(select_class_bar)
+        className = str(select_class_bar)
+        # className = await getClass(index,db,redis_store)
     print("debug stu analysis: term: {},className: {}".format(term,className))
     try:
         # print("DEBUG getStuAnsFromSql: ",term,className)
         stuClassInStuAn = db.query(models.StuAnalysis).with_entities(models.StuAnalysis.stuClass).distinct().all()
         stuClass_ann_list = []
+        # print("len stuClassInStuAn: ",len(stuClassInStuAn))
         for stcla in stuClassInStuAn:
+            # print(stcla)
             stuClass_ann_list.append(stcla[0])
         # print("stuAnalysis表中的班级信息: ",stuClass_ann_list)
         if className not in stuClass_ann_list:
@@ -157,9 +160,9 @@ async def getStuAnsFromSql(db:Session,redis_store:Redis,select_term_bar,select_c
 
         stuAna_list.append(info)
 
-
-    resp_json = json.dumps(stuAna_list,ensure_ascii=False)  # 将一个Python数据结构转换为JSON
-    return resp_json
+    return stuAna_list
+    # resp_json = json.dumps(stuAna_list,ensure_ascii=False)  # 将一个Python数据结构转换为JSON
+    # return resp_json
 
 
 async def getClass(index,db:Session,redis_store:Redis):

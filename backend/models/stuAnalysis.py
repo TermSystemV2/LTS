@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Column, Integer, String
-
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 from .base import Base
 

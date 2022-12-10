@@ -134,8 +134,10 @@ async def queryStudentInfoByNameOrID(request:Request,queryItem:schemas.StudentIn
             query_stuID = query_res[0]
         dict_stuInfo = await get_stuInfo(db,query_stuID, course_credit_dic)
         allFailedStudentInfos.append(dict_stuInfo)
-        resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
-        return Response200(data=resp_json)
+        return Response200(data=allFailedStudentInfos)
+        #  print("")
+        # resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
+        # return Response200(data=resp_json)
 
     return Response400(code=status.HTTP_400_BAD_REQUEST,msg="请输入正确的参数")
 
@@ -329,6 +331,7 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
     if credit4 != 0.0:
         totalWeightedScoreTerm4 = sumScore4 / (credit4 * 1.0)
 
+    failedSubjectdict['grade'] = grade
     failedSubjectdict["term1"] = term1
     failedSubjectdict["term2"] = term2
     failedSubjectdict["term3"] = term3
@@ -404,7 +407,8 @@ async def get_stuInfo(db:Session,stuID,course_credit_dic):
     print("="*50)
     print(type(course_credit_dic))
     print(course_credit_dic)
-    course_credit_dic = json.loads(course_credit_dic)
+    if(not isinstance(course_credit_dic,dict)):
+        course_credit_dic = json.loads(str(course_credit_dic))
     print(type(course_credit_dic))
     for sc in scoreList:
         # print(sc.courseName,sc.score,sc.term)

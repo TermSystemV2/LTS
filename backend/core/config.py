@@ -42,6 +42,8 @@ class Config():
     SQLALCHEMY_DATABASE_URI = DB_URI
     SQLALCHEMY_DATABASE_URI_async = DB_URI_async
     
+    # 是更新模式还是直接读取已经计算好的数据
+    UPDATE_DATA = False
     # 创建redis实例用到的参数
     REDIS_HOST = "127.0.0.1"
     REDIS_PORT = 6379
@@ -70,4 +72,5 @@ class Config():
     # 如果四个年级 在 term 学习上该 课程人数小于 30，则认为该课程是其他学院来的 or 该课程不在该学期开设，可能是补考出现的成绩
     NUM_STUDENTS_IN_COURSE_COURSE_DIM = 30
 
+    
 config = Config()

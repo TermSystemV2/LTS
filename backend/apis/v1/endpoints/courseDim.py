@@ -46,7 +46,7 @@ async def get_coursers_by_term_pass(queryItem: schemas.ClassQuery, db: Session =
                 "19": {
                 },
             },
-            "id": "term2_1",
+            "id": "term21",
             "pass_rate": [
                 97.0,
                 96.0,
@@ -80,7 +80,7 @@ async def get_coursers_by_term_pass(queryItem: schemas.ClassQuery, db: Session =
                 "courseName": courseName,
                 "failed_nums": {},
                 "gradeDistribute": {},
-                "id": "",
+                "id": "term"+str(term),
                 "pass_rate": {},
                 "sumFailedNums": 0
             }
