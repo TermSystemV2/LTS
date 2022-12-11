@@ -35,51 +35,119 @@ async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_ca
     state = await redis_store.exists("studentInfo_"+str(grade))
     print("[debug] state: ",state)
     if state == 0:
-        course_credit_dic = await get_course_credit(db,redis_store)  # 课程:学分
-        allFailedStudentInfos = []
-        # 从score 中获取所有成绩有不及格情况的同学
-        ## 格式为 json
-        stuID_json = await get_failedStuID(db,redis_store)
-        if stuID_json == -1:
-            return Response400(msg="数据库异常")
-        elif stuID_json == -2:
-            return Response400(msg="写入redis异常")
-        stuID_json = json.loads(stuID_json)
-        print(type(stuID_json))
-        # print("stuID_json:{}".format(stuID_json))
+        if config.UPDATE_DATA:
+            course_credit_dic = await get_course_credit(db,redis_store)  # 课程:学分
+            allFailedStudentInfos = []
+            # 从score 中获取所有成绩有不及格情况的同学
+            ## 格式为 json
+            stuID_json = await get_failedStuID(db,redis_store)
+            if stuID_json == -1:
+                return Response400(msg="数据库异常")
+            elif stuID_json == -2:
+                return Response400(msg="写入redis异常")
+            stuID_json = json.loads(stuID_json)
+            print(type(stuID_json))
+            # print("stuID_json:{}".format(stuID_json))
 
-        stuID_list = []
-        for stu in stuID_json:
-            if stu["stuGrade"] == str(grade):
-                stuID_list.append(stu["stuID"])
-        # classNameList = []
+            stuID_list = []
+            for stu in stuID_json:
+                if stu["stuGrade"] == str(grade):
+                    stuID_list.append(stu["stuID"])
+            # classNameList = []
 
-        for stuID in stuID_list:
-            dict_stuInfo = await get_stuInfo_by_grade(db,stuID, course_credit_dic, grade)
-            allFailedStudentInfos.append(dict_stuInfo)
-            # classNameList.append(dict_stuInfo["stuClass"])
-        # print(classNameList)
-        # 对结果进行排序
-        allFailedStudentInfos.sort(key=lambda k: (k.get('sumFailedCredit')), reverse=True)
-        index = 1
-        for stuInfo in allFailedStudentInfos:
-            stuInfo["index"] = index
-            index += 1
+            for stuID in stuID_list:
+                dict_stuInfo = await get_stuInfo_by_grade(db,stuID, course_credit_dic, grade)
+                allFailedStudentInfos.append(dict_stuInfo)
+                # classNameList.append(dict_stuInfo["stuClass"])
+            # print(classNameList)
+            # 对结果进行排序
+            allFailedStudentInfos.sort(key=lambda k: (k.get('sumFailedCredit')), reverse=True)
+            index = 1
+            for stuInfo in allFailedStudentInfos:
+                stuInfo["index"] = index
+                index += 1
 
-        if len(allFailedStudentInfos) != 0:
-            resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
-            # resp_json = json.loads(resp_json)
-            print("type(resp_json) ", type(resp_json))
-            try:
-                await redis_store.setex("studentInfo_"+str(grade),config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,resp_json)
-            except Exception as E:
-                logging.error("写入 redis 异常 %s" % E)
-
-                return Response400(msg="写入 redis 异常 %s" % str(E))
+            if len(allFailedStudentInfos) != 0:
+                
+                # 将计算好的数据写入到数据库
+                for studentInfoItem in allFailedStudentInfos:
+                        studentInfoQuery = db.query(models.StudentInfo).filter(and_(
+                            models.StudentInfo.grade == str(studentInfoItem['grade']), models.StudentInfo.stuID == studentInfoItem['stuID'])).first()
+                        if studentInfoQuery:
+                            continue
+                        print("将 学生信息 计算结果保存到数据库...")
+                        gradeDimInsert = models.StudentInfo(
+                            index=str(studentInfoItem['index']), 
+                            grade=str(grade),
+                            stuID = studentInfoItem['stuID'],
+                            stuName = studentInfoItem['stuName'],
+                            stuClass = studentInfoItem['stuClass'],
+                            term1 = str(studentInfoItem['term1']),
+                            term2 = str(studentInfoItem['term2']),
+                            term3 = str(studentInfoItem['term3']),
+                            term4 = str(studentInfoItem['term4']),
+                            totalWeightedScore = studentInfoItem['totalWeightedScore'],
+                            totalWeightedScoreTerm1 = studentInfoItem['totalWeightedScoreTerm1'],
+                            totalWeightedScoreTerm2 = studentInfoItem['totalWeightedScoreTerm2'],
+                            totalWeightedScoreTerm3 = studentInfoItem['totalWeightedScoreTerm3'],
+                            totalWeightedScoreTerm4 = studentInfoItem['totalWeightedScoreTerm4'],
+                            failedSubjectNamesScores = str(studentInfoItem['failedSubjectNamesScores']),
+                            failedSubjectNames = str(studentInfoItem['failedSubjectNames']),
+                            failedSubjectNums = studentInfoItem['failedSubjectNums'],
+                            sumFailedCredit = studentInfoItem['sumFailedCredit'],
+                            failedSubjectNumsTerm = str(studentInfoItem['failedSubjectNumsTerm']),
+                            totalWeightedScoreTerm = str(studentInfoItem['totalWeightedScoreTerm']),
+                            selfContent = str(studentInfoItem['selfContent'])
+                        )
+                        db.add(gradeDimInsert)
+                        db.commit()
+                        db.refresh(gradeDimInsert)
+                # resp_json = json.loads(resp_json)
+                
+                # return Response200(data=allFailedStudentInfos)
+            else:
+                return Response400(msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空")
             
-            return Response200(data=allFailedStudentInfos)
         else:
-            return Response400(msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空")
+            # 直接读取已经计算好的数据
+            retDb = db.query(models.StudentInfo).filter(models.StudentInfo.grade == str(grade)).all()
+            allFailedStudentInfos = []
+            # print("="*50)
+            for dbItem in retDb:
+                allFailedStudentInfos.append(
+                    {                        
+                        "index" : dbItem.index, 
+                        "grade" : dbItem.grade,
+                        "stuID" : dbItem.stuID,
+                        "stuName" : dbItem.stuName,
+                        "stuClass" : dbItem.stuClass,
+                        "term1" : eval(dbItem.term1) if dbItem.term1 != '' else [],
+                        "term2" : eval(dbItem.term2) if dbItem.term2 != '' else [],
+                        "term3" : eval(dbItem.term3) if dbItem.term3 != '' else [],
+                        "term4" : eval(dbItem.term4) if dbItem.term4 != '' else [],
+                        "totalWeightedScore" : dbItem.totalWeightedScore,
+                        "totalWeightedScoreTerm1" : dbItem.totalWeightedScoreTerm1,
+                        "totalWeightedScoreTerm2" : dbItem.totalWeightedScoreTerm2,
+                        "totalWeightedScoreTerm3" : dbItem.totalWeightedScoreTerm3,
+                        "totalWeightedScoreTerm4" : dbItem.totalWeightedScoreTerm4,
+                        "failedSubjectNamesScores" : eval(dbItem.failedSubjectNamesScores) if dbItem.failedSubjectNamesScores != '' else [],
+                        "failedSubjectNames" : dbItem.failedSubjectNames,
+                        "failedSubjectNums" : dbItem.failedSubjectNums,
+                        "sumFailedCredit" : dbItem.sumFailedCredit,
+                        "failedSubjectNumsTerm" : eval(dbItem.failedSubjectNumsTerm),
+                        "totalWeightedScoreTerm" : eval(dbItem.totalWeightedScoreTerm),
+                        "selfContent" : eval(dbItem.selfContent) if dbItem.selfContent != '' else {}
+                    }
+                )
+        # 将数据写入 redis
+        # try:
+        #     resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
+        #     await redis_store.setex("studentInfo_"+str(grade),config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,resp_json)
+        # except Exception as E:
+        #     logging.error("写入 redis 异常 %s" % E)
+
+        #     return Response400(msg="写入 redis 异常 %s" % str(E))
+        return Response200(data=allFailedStudentInfos)
     else:
         resp_data = await redis_store.get("studentInfo_"+str(grade))
         # print("type(resp_data) ",type(json.loads(resp_data)))
@@ -98,49 +166,89 @@ async def queryStudentInfoByNameOrID(request:Request,queryItem:schemas.StudentIn
     query_stuName = queryItem.stuName #request.args.get("stuName")
     course_credit_dic = await get_course_credit(db,redis_store)
     allFailedStudentInfos = []
+    if config.UPDATE_DATA:
+        # 从score 中获取所有成绩有不及格情况的同学
+        ## 格式为 json
+        stuID_json = await get_failedStuID(db,redis_store)
+        if stuID_json == -1:
+            return Response400(code=status.HTTP_500_INTERNAL_SERVER_ERROR,msg="数据库查询异常")
+        elif stuID_json == -2:
+            return Response400(code=status.HTTP_500_INTERNAL_SERVER_ERROR,msg="写入redis异常")
+        stuID_json = json.loads(stuID_json)
+        # 将json转换为list
+        # print("="*50)
+        # print(type(stuID_json))
+        # print("stuID_json:{}".format(stuID_json))
+        # stuID_dict = json.loads(stuID_json)
+        # print(type(stuID_dict))
+        # print("stuID_dict:{}".format(stuID_dict))
+        # stuID_json = list(stuID_json)
+        stuID_list = []
+        for stu in stuID_json:
+            stuID_list.append(stu["stuID"])
 
-    # 从score 中获取所有成绩有不及格情况的同学
-    ## 格式为 json
-    stuID_json = await get_failedStuID(db,redis_store)
-    if stuID_json == -1:
-        return Response400(code=status.HTTP_500_INTERNAL_SERVER_ERROR,msg="数据库查询异常")
-    elif stuID_json == -2:
-        return Response400(code=status.HTTP_500_INTERNAL_SERVER_ERROR,msg="写入redis异常")
-    stuID_json = json.loads(stuID_json)
-    # 将json转换为list
-    # print("="*50)
-    # print(type(stuID_json))
-    # print("stuID_json:{}".format(stuID_json))
-    # stuID_dict = json.loads(stuID_json)
-    # print(type(stuID_dict))
-    # print("stuID_dict:{}".format(stuID_dict))
-    # stuID_json = list(stuID_json)
-    stuID_list = []
-    for stu in stuID_json:
-        stuID_list.append(stu["stuID"])
+        if query_stuID or query_stuName:
+            if query_stuID:
+                pattern = "U[0-9]{9,9}"  # 学号格式验证 U201718703
+                if re.match(pattern, query_stuID) == None:
+                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="输入的学号格式不正确")
+                if query_stuID not in stuID_list:
+                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录")
+            else:
+                # 使用姓名查询
+                query_res = db.query(models.Student).with_entities(models.Student.stuID).filter(models.Student.stuName == query_stuName).first()
+                if query_res[0] not in stuID_list:
+                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录")
+                query_stuID = query_res[0]
+            dict_stuInfo = await get_stuInfo(db,query_stuID, course_credit_dic)
+            allFailedStudentInfos.append(dict_stuInfo)
+            return Response200(data=allFailedStudentInfos)
+            #  print("")
+            # resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
+            # return Response200(data=resp_json)
 
-    if query_stuID or query_stuName:
-        if query_stuID:
-            pattern = "U[0-9]{9,9}"  # 学号格式验证 U201718703
-            if re.match(pattern, query_stuID) == None:
-                return Response400(code=status.HTTP_400_BAD_REQUEST,msg="输入的学号格式不正确")
-            if query_stuID not in stuID_list:
-                return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录")
-        else:
-            # 使用姓名查询
-            query_res = db.query(models.Student).with_entities(models.Student.stuID).filter(models.Student.stuName == query_stuName).first()
-            if query_res[0] not in stuID_list:
-                return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录")
-            query_stuID = query_res[0]
-        dict_stuInfo = await get_stuInfo(db,query_stuID, course_credit_dic)
-        allFailedStudentInfos.append(dict_stuInfo)
-        return Response200(data=allFailedStudentInfos)
-        #  print("")
-        # resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
-        # return Response200(data=resp_json)
-
-    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="请输入正确的参数")
-
+        return Response400(code=status.HTTP_400_BAD_REQUEST,msg="查询不到该学生信息，请核对后输入")
+    else:
+        # 从已经计算好的数据库中查找
+        if query_stuID or query_stuName:
+            if query_stuID:
+                pattern = "U[0-9]{9,9}"  # 学号格式验证 U201718703
+                if re.match(pattern, query_stuID) == None:
+                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="输入的学号格式不正确")
+                query_res = db.query(models.StudentInfo).filter(models.StudentInfo.stuID == query_stuID).first()
+                if query_res is None:
+                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录，请核对输入")
+            else:
+                # 使用姓名查询
+                query_res = db.query(models.StudentInfo).filter(models.StudentInfo.stuName == query_stuName).first()
+                if query_res is None:
+                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录，请核对输入")
+                
+            dbItem = query_res
+            return Response200(data={
+                # "index" : dbItem.index, 
+                "grade" : dbItem.grade,
+                "stuID" : dbItem.stuID,
+                "stuName" : dbItem.stuName,
+                "stuClass" : dbItem.stuClass,
+                "term1" : eval(dbItem.term1) if dbItem.term1 != '' else [],
+                "term2" : eval(dbItem.term2) if dbItem.term2 != '' else [],
+                "term3" : eval(dbItem.term3) if dbItem.term3 != '' else [],
+                "term4" : eval(dbItem.term4) if dbItem.term4 != '' else [],
+                "totalWeightedScore" : dbItem.totalWeightedScore,
+                "totalWeightedScoreTerm1" : dbItem.totalWeightedScoreTerm1,
+                "totalWeightedScoreTerm2" : dbItem.totalWeightedScoreTerm2,
+                "totalWeightedScoreTerm3" : dbItem.totalWeightedScoreTerm3,
+                "totalWeightedScoreTerm4" : dbItem.totalWeightedScoreTerm4,
+                "failedSubjectNamesScores" : eval(dbItem.failedSubjectNamesScores) if dbItem.failedSubjectNamesScores != '' else [],
+                "failedSubjectNames" : dbItem.failedSubjectNames,
+                "failedSubjectNums" : dbItem.failedSubjectNums,
+                "sumFailedCredit" : dbItem.sumFailedCredit,
+                "failedSubjectNumsTerm" : eval(dbItem.failedSubjectNumsTerm),
+                "totalWeightedScoreTerm" : eval(dbItem.totalWeightedScoreTerm),
+                "selfContent" : eval(dbItem.selfContent) if dbItem.selfContent != '' else {}
+            }
+        )
 
 async def get_course_credit(db:Session,redis_store:Redis):
     """

@@ -54,11 +54,11 @@ async def get_grade_by_term(queryItem: schemas.GradeQuery, db: Session = Depends
                 }
                 """
                 tmpDict = {
+                    "term":str(term),
+                    "grade": str(grade),
                     "courseName": [],
                     "failed_nums": [],
-                    "failed_rates": [],
-                    "grade": str(grade),
-                    "term": str(term)
+                    "failed_rates": []
                 }
                 for row in courseInfo:
                     if row[0] not in low_courseName_list_grade[str(grade)] and row[1] < 60:
@@ -86,10 +86,11 @@ async def get_grade_by_term(queryItem: schemas.GradeQuery, db: Session = Depends
                 tuple_tmpDict = sorted(
                     tuple_tmpDict, key=lambda t: t[1], reverse=True)
                 tmpDict = {
+                    "term":str(term),
+                    "grade": str(grade),
                     "courseName": [],
                     "failed_nums": [],
-                    "failed_rates": [],
-                    "grade": str(grade)
+                    "failed_rates": []
                 }
                 for i in range(len(tuple_tmpDict)):
                     tmpDict["courseName"].append(tuple_tmpDict[i][0])
@@ -127,9 +128,9 @@ async def get_grade_by_term(queryItem: schemas.GradeQuery, db: Session = Depends
                     return Response400(msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空")
         else:
             # 直接读取计算好的数据
-            retDb = db.query(models.GradeByTerm).all()
+            retDb = db.query(models.GradeByTerm).filter(models.GradeByTerm.term == str(term)).all()
             ret = []
-            print("="*50)
+            # print("="*50)
             for dbItem in retDb:
                 ret.append(
                     {

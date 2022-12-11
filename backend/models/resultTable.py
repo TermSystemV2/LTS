@@ -3,6 +3,68 @@ from sqlalchemy.dialects.mysql import LONGTEXT
 
 from .base import Base
 
+class CourseByTermTable(Base):
+    """
+    班级维度数据表
+    {
+      "term": "11",
+      "courseName": "C++程序设计",
+      "failed_nums": {
+        "18": 2,
+        "19": 0,
+        "20": 2,
+        "21": 0
+      },
+      "gradeDistribute": {
+        "18": {
+          "0-59": 2,
+          "60-69": 1,
+          "70-79": 4,
+          "80-89": 15,
+          "90-100": 28
+        },
+        "19": {
+          "0-59": 0,
+          "60-69": 0,
+          "70-79": 1,
+          "80-89": 0,
+          "90-100": 0
+        },
+        "20": {
+          "0-59": 2,
+          "60-69": 1,
+          "70-79": 5,
+          "80-89": 3,
+          "90-100": 11
+        },
+        "21": {
+          "0-59": 0,
+          "60-69": 0,
+          "70-79": 0,
+          "80-89": 0,
+          "90-100": 5
+        }
+      },
+      "pass_rate": {
+        "18": 1,
+        "19": 0,
+        "20": 1,
+        "21": 0
+      },
+      "sumFailedNums": 4
+    }
+    """
+    __tablename__ = 'courseByTermTable'
+    term = Column(String(2),primary_key=True)
+    className = Column(String(30), primary_key=True)
+    
+    totalNum = Column(Integer, nullable=False)
+    failedNum = Column(Integer, nullable=False)
+    failedThreeNum = Column(Integer, nullable=False)
+    failedNum2 = Column(Integer, nullable=False)
+    failedRate = Column(Float, nullable=False)
+    failedRange = Column(Float, nullable=False)
+
 class ClassByTermTable(Base):
     """
     班级维度数据表
@@ -28,11 +90,12 @@ class ClassByTermTable(Base):
     failedRate = Column(Float, nullable=False)
     failedRange = Column(Float, nullable=False)
     
-
 class ClassByTermChart(Base):
     """
     班级维度数据 图
     {
+        "id": "11",
+        "grade": "18",
         "classNameList": [
             "卓越\n1801",
             "ACM1801",
@@ -47,17 +110,24 @@ class ClassByTermChart(Base):
             0.0,
             0.0,
             11.0
-        ],
-        "grade": "18",
-        "id": "term_11_18"
+        ]
     }
     """
     __tablename__ = 'classByTermChart'
-    id = Column(String(30), primary_key=True)
+    term = Column(String(30), primary_key=True)
     grade = Column(String(2), primary_key=True)
-    classNameList = Column(String(100), nullable=False)
+    classNameList = Column(LONGTEXT, nullable=False)
     failedNum = Column(String(100), nullable=False)
     failedRate = Column(String(100), nullable=False)
+    
+    def to_dict(self):
+      return {
+        "classNameList":self.classNameList,
+        "failedNum": self.failedNum,
+        "failedRate": self.failedRate,
+        "grade": self.grade,
+        "id": self.id
+      }
 
 
 class GradeByTerm(Base):
@@ -209,17 +279,17 @@ class StudentInfo(Base):
     stuID = Column(String(10), primary_key=True)
     stuName = Column(String(10), nullable=False)
     stuClass = Column(String(10), nullable=False)
-    term1 = Column(String(100), nullable=True)
-    term2 = Column(String(100), nullable=True)
-    term3 = Column(String(100), nullable=True)
-    term4 = Column(String(100), nullable=True)
+    term1 = Column(String(500), nullable=True)
+    term2 = Column(String(500), nullable=True)
+    term3 = Column(String(500), nullable=True)
+    term4 = Column(String(500), nullable=True)
     totalWeightedScore = Column(Float, nullable=True)
     totalWeightedScoreTerm1 = Column(Float, nullable=True)
     totalWeightedScoreTerm2 = Column(Float, nullable=True)
+    totalWeightedScoreTerm3 = Column(Float, nullable=True)
     totalWeightedScoreTerm4 = Column(Float, nullable=True)
-    totalWeightedScoreTerm4 = Column(Float, nullable=True)
-    failedSubjectNamesScores = Column(Float, nullable=True)
-    failedSubjectNames = Column(String(200), nullable=True)
+    failedSubjectNamesScores = Column(LONGTEXT, nullable=True)
+    failedSubjectNames = Column(String(500), nullable=True)
     failedSubjectNums = Column(Integer, nullable=True)
     sumFailedCredit = Column(Integer, nullable=True)
     failedSubjectNumsTerm = Column(String(50), nullable=True)

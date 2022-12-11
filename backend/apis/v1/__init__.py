@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from .endpoints import (
     login_router, ec_router, file_router, stuInfo_router, failA_router,courseDim_router,
-    classDim_router,gradeDim_router
+    classDim_router,gradeDim_router,synchronizedData_router
 )
 
 v1 = APIRouter(prefix="/v1")
@@ -14,4 +14,5 @@ v1.include_router(failA_router,tags=['不及格分析'])
 v1.include_router(courseDim_router,tags=['课程维度'])
 v1.include_router(gradeDim_router,tags=['年级维度'])
 v1.include_router(classDim_router,tags=['班级维度'])
+v1.include_router(synchronizedData_router,tags=['同步数据'])
 # v1.include_router(test_api,tags=["测试API"])

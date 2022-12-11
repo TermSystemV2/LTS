@@ -8,6 +8,7 @@ from .failedAnalysis import failA_router
 from .gradeDim import gradeDim_router
 from .courseDim import courseDim_router
 from .classDim import classDim_router
+from .synchronizeData import synchronizedData_router
 # from .test import test_api
 
 
