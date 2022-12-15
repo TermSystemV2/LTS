@@ -17,6 +17,14 @@ class ResponseBasic(BaseModel):
 class Response200(ResponseBasic):
     pass
 
+    def to_dict():
+        pass
+
 class Response400(ResponseBasic):
     code: int = Field(default=status.HTTP_400_BAD_REQUEST)
     msg : str = "请求失败"
+
+
+class ResponseToken(Response200):
+    access_token: str
+    token_type: str = Field(default="bearer")

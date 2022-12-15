@@ -198,7 +198,8 @@ async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = D
                     "failedNum": [],
                     "failedRate": [],  # 挂科人数
                     "grade": str(grade),
-                    "id": "term_" + str(term) + "_" + str(grade)
+                    # "term": "term_" + str(term) + "_" + str(grade)
+                    "term": str(term)
                 }
                 for className in grade_class_info["class_nums_student"][grade]:
                     res_class = db.query(models.Scores).join(models.Student, models.Scores.stuID == models.Student.stuID,
@@ -228,7 +229,7 @@ async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = D
                     # 将计算好的数据写入数据库
                     for classItem in ret:
                         classItemQuery = db.query(models.ClassByTermChart).filter(and_(
-                            models.ClassByTermChart.id == classItem['id'], models.ClassByTermChart.grade == str(classItem['grade'])
+                            models.ClassByTermChart.term == classItem['term'], models.ClassByTermChart.grade == str(classItem['grade'])
                         )).first()
                         print("="*50)
                         print(classItemQuery)
@@ -236,7 +237,7 @@ async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = D
                             continue
                         print("将 班级维度的表数据计算 结果存入数据库 ...")
                         classItemInsert = models.ClassByTermChart(
-                            id=classItem['id'],
+                            term=classItem['term'],
                             grade=str(classItem['grade']),
                             classNameList=str(classItem['classNameList']),
                             failedNum=str(classItem['failedNum']),

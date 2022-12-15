@@ -1,6 +1,7 @@
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
+from typing import Optional
 import jwt
 
 
@@ -17,7 +18,13 @@ def get_password_hash(password:str) ->str:
 def verify_password(plain_password:str,hashed_password:str)-> bool:
     return pwd_context.verify(plain_password,hashed_password)
 
-def create_access_token(*,data:dict,expires_delta:timedelta = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """
+    生成token
+    :param data: 字典
+    :param expires_delta: 有效时间
+    :return:
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta

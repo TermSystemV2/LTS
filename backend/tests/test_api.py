@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 from sqlalchemy.orm import Session
 import json
-
+import asyncio
 # import models
-
+from core.config import config
 test_api = APIRouter()
 # def test_dict():
 #     d_dict = dict()
@@ -97,6 +97,30 @@ def test_eval():
         print(eval(myStr))
     else:
         print("空字符串")
-    
+
+async def test1():
+    print(1)
+async def test2():
+    print(2)
+async def test3():
+    print(3)
+
+async def test_main():
+    flag = 0
+    await test1()
+    print("flag: ",flag)
+    await test2()
+    print("flag: ",flag)
+    await test3()
+    print("flag: ",flag)
+    flag = 1
+    print("flag: ",flag)
+
 if __name__ == '__main__':
-    test_eval()
+    # asyncio.run(test_main())
+    print(config.UPDATE_DATA)
+    
+    print("="*20)
+    config.UPDATE_DATA = False
+    print(config.UPDATE_DATA)
+    

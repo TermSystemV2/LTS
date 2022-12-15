@@ -44,7 +44,7 @@ async def stuInfo_cache() -> Redis:
     stuInfo_cache_pool = aioredis.ConnectionPool.from_url(
         # "redis://:password@host:6379/0?encoding=utf-8"
         f"redis://:{config.REDIS_PASSWORD}@{os.getenv('CACHE_HOST',config.REDIS_HOST)}:{os.getenv('CACHE_PORT',config.REDIS_PORT)}",
-        db=os.getenv('CACHE_DB',3), # redis中有16个数据库，这里使用 1
+        db=os.getenv('CACHE_DB',3), # redis中有16个数据库，这里使用 3
         encoding='utf-8',
         decode_responses=True
     )

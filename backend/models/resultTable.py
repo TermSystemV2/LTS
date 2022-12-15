@@ -94,7 +94,7 @@ class ClassByTermChart(Base):
     """
     班级维度数据 图
     {
-        "id": "11",
+        "term": "11",
         "grade": "18",
         "classNameList": [
             "卓越\n1801",
@@ -165,9 +165,9 @@ class GradeByTerm(Base):
     # id = Column(String(30), primary_key=True)
     term = Column(String(2), primary_key=True)
     grade = Column(String(2), primary_key=True)
-    courseName = Column(String(200), nullable=False)
-    failed_nums = Column(String(50), nullable=False)
-    failed_rates = Column(String(100), nullable=False)
+    courseName = Column(LONGTEXT, nullable=False)
+    failed_nums = Column(String(200), nullable=False)
+    failed_rates = Column(String(200), nullable=False)
     
 class StudentInfo(Base):
     """
@@ -277,19 +277,19 @@ class StudentInfo(Base):
     index = Column(Integer, primary_key=True)
     grade = Column(String(2), primary_key=True)
     stuID = Column(String(10), primary_key=True)
-    stuName = Column(String(10), nullable=False)
+    stuName = Column(String(50), nullable=False)
     stuClass = Column(String(10), nullable=False)
-    term1 = Column(String(500), nullable=True)
-    term2 = Column(String(500), nullable=True)
-    term3 = Column(String(500), nullable=True)
-    term4 = Column(String(500), nullable=True)
+    term1 = Column(LONGTEXT, nullable=True)
+    term2 = Column(LONGTEXT, nullable=True)
+    term3 = Column(LONGTEXT, nullable=True)
+    term4 = Column(LONGTEXT, nullable=True)
     totalWeightedScore = Column(Float, nullable=True)
     totalWeightedScoreTerm1 = Column(Float, nullable=True)
     totalWeightedScoreTerm2 = Column(Float, nullable=True)
     totalWeightedScoreTerm3 = Column(Float, nullable=True)
     totalWeightedScoreTerm4 = Column(Float, nullable=True)
     failedSubjectNamesScores = Column(LONGTEXT, nullable=True)
-    failedSubjectNames = Column(String(500), nullable=True)
+    failedSubjectNames = Column(LONGTEXT, nullable=True)
     failedSubjectNums = Column(Integer, nullable=True)
     sumFailedCredit = Column(Integer, nullable=True)
     failedSubjectNumsTerm = Column(String(50), nullable=True)

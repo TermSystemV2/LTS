@@ -36,7 +36,7 @@ async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_ca
     print("[debug] state: ",state)
     if state == 0:
         if config.UPDATE_DATA:
-            course_credit_dic = await get_course_credit(db,redis_store)  # 课程:学分
+            course_credit_dic = await get_course_credit(db,redis_store,grade)  # 课程:学分
             allFailedStudentInfos = []
             # 从score 中获取所有成绩有不及格情况的同学
             ## 格式为 json
@@ -140,13 +140,13 @@ async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_ca
                     }
                 )
         # 将数据写入 redis
-        # try:
-        #     resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
-        #     await redis_store.setex("studentInfo_"+str(grade),config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,resp_json)
-        # except Exception as E:
-        #     logging.error("写入 redis 异常 %s" % E)
+        try:
+            resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
+            await redis_store.setex("studentInfo_"+str(grade),config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,resp_json)
+        except Exception as E:
+            logging.error("写入 redis 异常 %s" % E)
 
-        #     return Response400(msg="写入 redis 异常 %s" % str(E))
+            return Response400(msg="写入 redis 异常 %s" % str(E))
         return Response200(data=allFailedStudentInfos)
     else:
         resp_data = await redis_store.get("studentInfo_"+str(grade))
@@ -250,7 +250,7 @@ async def queryStudentInfoByNameOrID(request:Request,queryItem:schemas.StudentIn
             }
         )
 
-async def get_course_credit(db:Session,redis_store:Redis):
+async def get_course_credit(db:Session,redis_store:Redis,grade):
     """
 
     :return:
@@ -298,7 +298,7 @@ async def get_failedStuID(db:Session,redis_store:Redis):
         return await redis_store.get("failedStuID")
     # 没有读到
     try:
-        # ## 查询学号 成绩 < 60, 对查询结果降序排序
+        #  查询学号 成绩 < 60, 对查询结果降序排序
         results = db.query(models.Scores).with_entities(models.Scores.stuID,models.Scores.grade).distinct().filter(models.Scores.score < '60').order_by(models.Scores.stuID.asc())
     except Exception as E:
         logging.error(msg="发生异常：{}".format(str(E)))

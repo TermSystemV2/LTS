@@ -36,6 +36,7 @@ declare module '@vue/runtime-core' {
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
     ElTag: typeof import('element-plus/es')['ElTag']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
+    ElUpload: typeof import('element-plus/es')['ElUpload']
     ExcellentBar: typeof import('./src/components/excellentBar.vue')['default']
     ExcellentLine: typeof import('./src/components/excellentLine.vue')['default']
     GradeBar: typeof import('./src/components/gradeBar.vue')['default']
