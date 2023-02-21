@@ -113,7 +113,14 @@ async def get_grade_by_term(queryItem: schemas.GradeQuery, db: Session = Depends
                         gradeDimQuery = db.query(models.GradeByTerm).filter(and_(
                             models.GradeByTerm.term == str(term), models.GradeByTerm.grade == str(grade))).first()
                         if gradeDimQuery:
-                            continue
+                            db.query(models.GradeByTerm).filter(
+                                and_(
+                                    models.GradeByTerm.term == str(term), 
+                                    models.GradeByTerm.grade == str(grade)
+                                )
+                            ).delete()
+                            # db.delete(isInTable)
+                            db.commit()
                         print("将 年级维度的 计算结果保存到数据库...")
                         gradeDimInsert = models.GradeByTerm(term=str(term), grade=str(grade),
                                                             courseName=str(
@@ -141,9 +148,11 @@ async def get_grade_by_term(queryItem: schemas.GradeQuery, db: Session = Depends
                         "failed_rates": eval(dbItem.failed_rates)  if dbItem.courseName != '' else [],
                     }
                 )
-            
-        # 将数据写入缓存
-        await redis_store.setex(redis_key, config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES, json.dumps(ret, ensure_ascii=False))
+        if(len(ret) != 0):
+            # 将数据写入缓存
+            await redis_store.setex(redis_key, config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES, json.dumps(ret, ensure_ascii=False))
+        else:
+            return Response400(data="中间结果数据库中暂时无数据，请在文件上传页面切换读取数据方式为从原始数据读取之后再请求")
     else:
         ret = json.loads(await redis_store.get(redis_key))
 

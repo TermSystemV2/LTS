@@ -12,30 +12,29 @@
 					<el-option key="41" label="第四学年·第一学期" value="41"></el-option>
 					<el-option key="42" label="第四学年·第二学期" value="42"></el-option>
 				</el-select>
-				<el-button type="primary" :icon="Search" @click="handleSearchTerm(term)">搜索</el-button>
 			</div>
 			<div class="handle-box">
-				<el-select v-model="courseName" placeholder="请选择班级" class="handle-select mr10" @change="$forceUpdate()">
-					<el-option v-for="course in coursesData" :label="course.label" :value="course.label">
+				<el-select v-model="className" placeholder="请选择班级" class="handle-select mr10" @change="$forceUpdate()">
+					<el-option v-for="cl in classesData" :key="cl.value" :value="cl.label">
 					</el-option>
 				</el-select>
-				<el-button type="primary" :icon="Search" @click="handleSearchCourse(courseName)">搜索</el-button>
+				<el-button type="primary" :icon="Search" @click="handleSearchAnalysis(term,className)">搜索</el-button>
 				<!-- <el-button type="primary" :icon="Plus">新增</el-button> -->
 			</div>
-			<el-table :data="tableData" border class="table" ref="multipleTable" header-cell-class-name="table-header"
+			<el-table :data="tableTransData" border class="table" ref="multipleTable" header-cell-class-name="table-header"
 				:row-style="{height: '100px'}" :header-cell-style="{textAlign: 'center'}" :cell-style="{ textAlign: 'center' }" :span-method="objectSpanMethod">
 				<!-- <el-table-column prop="id" label="ID" width="55" align="center"></el-table-column> -->
-				<el-table-column prop="" label="姓名" width="120">
+				<el-table-column prop="stuName" label="姓名" width="120">
 					<!-- <template #default="scope" class="template">
 						{{scope.row.courseName}}
 						<p class="fail_text">（共计{{scope.row.sumFailedNums}}人次）</p>
 					</template> -->
 				</el-table-column>
-				<el-table-column label="挂科科目" width="120">
+				<el-table-column prop="failSubjectName" label="挂科科目" width="120">
 				</el-table-column>
-				<el-table-column label="分析人" width="120">
+				<el-table-column  prop="analysisPerson" label="分析人" width="120">
 				</el-table-column>
-				<el-table-column label="分析内容">
+				<el-table-column  prop="content" label="分析内容">
 					<!-- <template #default="scope" class="template">
 						<CourseLine :chartData="scope.row" />
 					</template> -->
@@ -105,19 +104,33 @@
 import { ref, reactive } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Delete, Edit, Search, Plus } from '@element-plus/icons-vue';
-import { fetchData, fetchCoursesData } from '../api/index';
+import { fetchStudentClasssesData, fetchAnalysisData } from '../api/index';
 import type { TableColumnCtx } from 'element-plus/es/components/table/src/table-column/defaults'
 
+interface ClassItem {
+	cls_id: number;
+	className: string;
+}
 interface TableItem {
-	courseName: string;
-	failed_nums: string;
-	gradeDistribute: string;
-	id: string;
-	pass_rate: string;
-	sumFailedNums: string;
+	stuID: string;
+	stuName: string;
+	stuType: number;
+	term: number;
+	failSubjectName: string;
+	stuClass: string;
+	content1: string;
+	content2: string;
+	content3: string;
+	failSubjectNameList: string[];
+}
+interface TableTransItem {
+	stuName: string;
+	failSubjectName: string;
+	analysisPerson: string;
+	content: string;
 }
 interface ListItem {
-  value: string
+  value: number
   label: string
 }
 
@@ -135,51 +148,69 @@ const query = reactive({
 	pageSize: 10
 });
 let term = '11'
-let courseName = ''
+let className = ''
+const classData = ref<ClassItem[]>([]);
 const tableData = ref<TableItem[]>([]);
-const tableDataCopy = ref<TableItem[]>([]);
-let coursesData = ref<ListItem[]>([]);
+const tableTransData = ref<TableTransItem[]>([]);
+let classesData = ref<ListItem[]>([]);
 const pageTotal = ref(0);
 // 获取表格数据
-const getData = (term: String) => {
+const getData = () => {
 	// fetchData().then(res => {
 	// 	tableData.value = res.data.list;
 	// 	pageTotal.value = res.data.pageTotal || 50;
 	// 	console.log(tableData.value);
 	// });
-	fetchCoursesData(term).then(res => {
-		tableData.value = res.data.data;
-		tableDataCopy.value = tableData.value;
-		console.log(tableData.value);
-		coursesData.value = [];
-		for(var key in tableData.value){
-			coursesData.value.push({
-				value: tableData.value[key].courseName,
-				label: tableData.value[key].courseName
+	fetchStudentClasssesData().then(res => {
+		classData.value = res.data.data;
+		console.log(classData.value);
+		classesData.value = [];
+		for(var key in classData.value){
+			classesData.value.push({
+				value: classData.value[key].cls_id,
+				label: classData.value[key].className
 			})
 		}
-		console.log(coursesData);
+		console.log(classesData);
 	});
 };
-getData(term);
+getData();
 
 // 查询操作
-const handleSearchTerm = (term: String) => {
-	query.pageIndex = 1;
+const handleSearchAnalysis = (term: String,classesName: String) => {
 	console.log('term:' + term);
-	getData(term);
-};
-const handleSearchCourse = (courseName: String) => {
-	console.log('course:' + courseName);
-	tableData.value = tableDataCopy.value;
-	tableData.value = tableData.value.filter((item) => {
-        return item.courseName == courseName
-    })
+	console.log('class:' + classesName);
+	fetchAnalysisData(term,classesName).then(res => {
+		tableData.value = res.data.data;
+		console.log(tableData.value);
+		tableTransData.value = []
+		for(var key in tableData.value){
+			tableTransData.value.push({
+				stuName: tableData.value[key].stuName,
+				failSubjectName: tableData.value[key].failSubjectName,
+				analysisPerson: '本人分析',
+				content: tableData.value[key].content1
+			});
+			tableTransData.value.push({
+				stuName: tableData.value[key].stuName,
+				failSubjectName: tableData.value[key].failSubjectName,
+				analysisPerson: '班长分析',
+				content: tableData.value[key].content2
+			});
+			tableTransData.value.push({
+				stuName: tableData.value[key].stuName,
+				failSubjectName: tableData.value[key].failSubjectName,
+				analysisPerson: '学委分析',
+				content: tableData.value[key].content3
+			})
+		}
+		console.log(tableTransData.value);
+	});
 };
 // 分页导航
 const handlePageChange = (val: number) => {
 	query.pageIndex = val;
-	getData(term);
+	getData();
 };
 const objectSpanMethod = ({
   row,

@@ -21,4 +21,5 @@ python main.py
 alembic init
 alembic revision --autogenerate -m "update failed rates"
 alembic upgrade
+alembic upgrade head # 在这一步前打开文件下的版本py文件，删除其他不需要更新的表
 ```

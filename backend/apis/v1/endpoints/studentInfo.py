@@ -68,13 +68,19 @@ async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_ca
                 index += 1
 
             if len(allFailedStudentInfos) != 0:
-                
                 # 将计算好的数据写入到数据库
                 for studentInfoItem in allFailedStudentInfos:
                         studentInfoQuery = db.query(models.StudentInfo).filter(and_(
                             models.StudentInfo.grade == str(studentInfoItem['grade']), models.StudentInfo.stuID == studentInfoItem['stuID'])).first()
                         if studentInfoQuery:
-                            continue
+                            db.query(models.StudentInfo).filter(
+                            and_(
+                                models.StudentInfo.grade == str(studentInfoItem['grade']), 
+                                models.StudentInfo.stuID == studentInfoItem['stuID']
+                                )
+                            ).delete()
+                            # db.delete(isInTable)
+                            db.commit()
                         print("将 学生信息 计算结果保存到数据库...")
                         gradeDimInsert = models.StudentInfo(
                             index=str(studentInfoItem['index']), 
@@ -140,13 +146,17 @@ async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_ca
                     }
                 )
         # 将数据写入 redis
-        try:
-            resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
-            await redis_store.setex("studentInfo_"+str(grade),config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,resp_json)
-        except Exception as E:
-            logging.error("写入 redis 异常 %s" % E)
+        if(len(allFailedStudentInfos) != 0):
+            try:
+                
+                resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
+                await redis_store.setex("studentInfo_"+str(grade),config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,resp_json)
+            except Exception as E:
+                logging.error("写入 redis 异常 %s" % E)
 
-            return Response400(msg="写入 redis 异常 %s" % str(E))
+                return Response400(msg="写入 redis 异常 %s" % str(E))
+        else:
+            return Response400(data="中间结果数据库中暂时无数据，请在文件上传页面切换读取数据方式为从原始数据读取之后再请求")
         return Response200(data=allFailedStudentInfos)
     else:
         resp_data = await redis_store.get("studentInfo_"+str(grade))
@@ -469,7 +479,6 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
     # print(sumScore3, credit3)
     return failedSubjectdict
     # return jsonify(errno=RET.OK,errmsg="OK")
-
 
 async def get_stuInfo(db:Session,stuID,course_credit_dic):
     """

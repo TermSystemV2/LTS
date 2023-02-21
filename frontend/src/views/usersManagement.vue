@@ -7,10 +7,14 @@
 				<el-button type="primary" :icon="Plus" @click="handleAdd">新增用户</el-button>
 			</div>
 			<el-table :data="tableData" border class="table" ref="multipleTable" header-cell-class-name="table-header">
-				<el-table-column prop="id" label="ID" width="55" align="center"></el-table-column>
-				<el-table-column prop="name" label="用户名"></el-table-column>
+				<el-table-column prop="id" label="ID" width="55" align="center">
+					<template #default="scope">{{ scope.$index + 1 }}</template>
+				</el-table-column>
+				<el-table-column label="用户名">
+					<template #default="scope">{{ scope.row.cName }}</template>
+				</el-table-column>
 				<el-table-column label="工号">
-					<template #default="scope">￥{{ scope.row.money }}</template>
+					<template #default="scope">{{ scope.row.cID }}</template>
 				</el-table-column>
 				<!-- <el-table-column label="头像(查看大图)" align="center">
 					<template #default="scope">
@@ -27,9 +31,9 @@
 				<el-table-column label="状态" align="center">
 					<template #default="scope">
 						<el-tag
-							:type="scope.row.state === '成功' ? 'success' : scope.row.state === '失败' ? 'danger' : ''"
+							:type="scope.row.is_active === true ? 'success' : scope.row.is_active === false ? 'danger' : ''"
 						>
-							{{ scope.row.state }}
+							{{ scope.row.is_active === true ? '可用' : scope.row.is_active === false ? '禁用' : '' }}
 						</el-tag>
 					</template>
 				</el-table-column>
@@ -59,34 +63,43 @@
 		<!-- 编辑弹出框 -->
 		<el-dialog title="编辑" v-model="editVisible" width="30%">
 			<el-form label-width="70px">
-				<el-form-item label="用户名">
-					<el-input v-model="form.name"></el-input>
+				<el-form-item label="状态：">
+					<el-radio-group v-model="form.is_active" class="ml-4">
+						<el-radio :label="true" size="large">可用</el-radio>
+						<el-radio :label="false" size="large">禁用</el-radio>
+					</el-radio-group>
 				</el-form-item>
-				<el-form-item label="地址">
-					<el-input v-model="form.address"></el-input>
+				<el-form-item label="权限：">
+					<el-radio-group v-model="form.is_superuser" class="ml-4">
+						<el-radio :label="true" size="large">管理员</el-radio>
+						<el-radio :label="false" size="large">普通用户</el-radio>
+					</el-radio-group>
 				</el-form-item>
 			</el-form>
 			<template #footer>
 				<span class="dialog-footer">
 					<el-button @click="editVisible = false">取 消</el-button>
-					<el-button type="primary" @click="saveEdit">确 定</el-button>
+					<el-button type="primary" @click="editUser">确 定</el-button>
 				</span>
 			</template>
 		</el-dialog>
         <!-- 添加用户弹出框 -->
 		<el-dialog title="添加用户" v-model="addVisible" width="30%">
 			<el-form label-width="70px">
+				<el-form-item label="工号">
+					<el-input v-model="form.cID"></el-input>
+				</el-form-item>
 				<el-form-item label="用户名">
-					<el-input v-model="form.name"></el-input>
+					<el-input v-model="form.cName"></el-input>
 				</el-form-item>
 				<el-form-item label="密码">
-					<el-input v-model="form.address"></el-input>
+					<el-input v-model="form.password"></el-input>
 				</el-form-item>
 			</el-form>
 			<template #footer>
 				<span class="dialog-footer">
 					<el-button @click="addVisible = false">取 消</el-button>
-					<el-button type="primary" @click="saveAdd">确 定</el-button>
+					<el-button type="primary" @click="addUser">确 定</el-button>
 				</span>
 			</template>
 		</el-dialog>
@@ -97,15 +110,21 @@
 import { ref, reactive } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Delete, Edit, Search, Plus } from '@element-plus/icons-vue';
-import { fetchData } from '../api/index';
+import { fetchUsersData, addUserData } from '../api/index';
 
 interface TableItem {
-	id: number;
-	name: string;
-	money: string;
-	state: string;
-	date: string;
-	address: string;
+	cID: string;
+	cName: string;
+	is_active: boolean;
+	is_superuser: boolean;
+}
+
+interface AddUserItem {
+	cID: string;
+	cName: string;
+	is_active: boolean;
+	is_superuser: boolean;
+	password: string
 }
 
 const query = reactive({
@@ -118,9 +137,11 @@ const tableData = ref<TableItem[]>([]);
 const pageTotal = ref(0);
 // 获取表格数据
 const getData = () => {
-	fetchData().then(res => {
-		tableData.value = res.data.list;
-		pageTotal.value = res.data.pageTotal || 50;
+	fetchUsersData().then(res => {
+		tableData.value = res.data;
+		console.log(tableData.value);
+		
+		// pageTotal.value = res.data.pageTotal || 50;
 	});
 };
 getData();
@@ -151,9 +172,13 @@ const handleDelete = (index: number) => {
 
 // 表格编辑时弹窗和保存
 const editVisible = ref(false);
-let form = reactive({
-	name: '',
-	address: ''
+let form = reactive<AddUserItem>({
+	cID: '',
+	cName: '',
+	//默认情况下时可用、非超级用户
+	is_active: true,
+	is_superuser: false,
+	password: ''
 });
 let idx: number = -1;
 const handleEdit = (index: number, row: any) => {
@@ -162,7 +187,7 @@ const handleEdit = (index: number, row: any) => {
 	form.address = row.address;
 	editVisible.value = true;
 };
-const saveEdit = () => {
+const editUser = () => {
 	editVisible.value = false;
 	ElMessage.success(`修改第 ${idx + 1} 行成功`);
 	tableData.value[idx].name = form.name;
@@ -173,9 +198,13 @@ const addVisible = ref(false);
 const handleAdd = () => {
 	addVisible.value = true;
 };
-const saveAdd = () => {
+const addUser = () => {
 	addVisible.value = false;
-	ElMessage.success(`添加用户成功`);
+	addUserData(form).then(res => {
+		console.log(res.data.msg);
+		ElMessage.success(`添加用户成功`);
+		getData();
+	});
 };
 </script>
 

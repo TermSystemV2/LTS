@@ -44,7 +44,8 @@ class Config():
     SQLALCHEMY_DATABASE_URI_async = DB_URI_async
     
     # 是更新模式还是直接读取已经计算好的数据
-    UPDATE_DATA = True
+    UPDATE_DATA = False # True 重新计算， False 直接读取已经计算好得数据
+    UPDATE_DATA_NAME = "read_from_origin"
     # 学期代号 11：第一学年上半学期
     Term_List = ['11','12','21','22','31','32','41','42']
     Grade_List = ['18','19','20','21']

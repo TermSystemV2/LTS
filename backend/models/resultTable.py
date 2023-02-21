@@ -3,10 +3,18 @@ from sqlalchemy.dialects.mysql import LONGTEXT
 
 from .base import Base
 
+class ResultReadState(Base):
+    __tablename__ = 'resultReadState'
+    # id = Column(Integer,primary_key=True)
+    name = Column(String(50),primary_key=True)
+    state = Column(Boolean,default=True) # 为 True 表示从原始数据中读取
+    
+    
 class CourseByTermTable(Base):
     """
     班级维度数据表
     {
+      "id": "term"+str(term),
       "term": "11",
       "courseName": "C++程序设计",
       "failed_nums": {
@@ -51,19 +59,30 @@ class CourseByTermTable(Base):
         "20": 1,
         "21": 0
       },
+      "failStudentsList":[
+                ["年级","班级","姓名"]
+      ],
       "sumFailedNums": 4
     }
-    """
-    __tablename__ = 'courseByTermTable'
-    term = Column(String(2),primary_key=True)
-    className = Column(String(30), primary_key=True)
     
-    totalNum = Column(Integer, nullable=False)
-    failedNum = Column(Integer, nullable=False)
-    failedThreeNum = Column(Integer, nullable=False)
-    failedNum2 = Column(Integer, nullable=False)
-    failedRate = Column(Float, nullable=False)
-    failedRange = Column(Float, nullable=False)
+    "courseName": courseName,
+    "failed_nums": {},
+    "gradeDistribute": {},
+    "pass_rate": {},
+    "failStudentsList": [],
+    "sumFailedNums": 0
+    """
+    
+    __tablename__ = 'courseByTermTable'
+    id = Column(String(10),primary_key=True)
+    term = Column(String(2),primary_key=True)
+    courseName = Column(String(30), primary_key=True)
+    
+    failed_nums = Column(String(100), nullable=False)
+    gradeDistribute = Column(LONGTEXT, nullable=False)
+    pass_rate = Column(String(100), nullable=False)
+    failStudentsList = Column(LONGTEXT)
+    sumFailedNums = Column(Integer, nullable=False)
 
 class ClassByTermTable(Base):
     """

@@ -1,8 +1,9 @@
 import os
 import re
 import typing as t
+import json
 
-from fastapi import APIRouter, File,UploadFile,Request, Response, Depends,status,HTTPException
+from fastapi import APIRouter, File, UploadFile, Request, Response, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from aioredis import Redis
 import pandas as pd
@@ -15,6 +16,7 @@ from core.config import config
 
 
 file_router = APIRouter()
+
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -32,9 +34,9 @@ async def upload_file(file: UploadFile = File(...)):
         res = await file.read()
         target_dir = "./documents/grade/"
         save_file_name = target_dir + file.filename
-        with open(save_file_name,"wb") as fw:
+        with open(save_file_name, "wb") as fw:
             fw.write(res)
-        return Response200(msg="文件读取成功",data={"filename": file.filename,"file type":file.content_type})
+        return Response200(msg="文件读取成功", data={"filename": file.filename, "file type": file.content_type})
     except Exception as e:
         return Response400(msg="保存文件出现错误："+str(e))
 
@@ -55,11 +57,9 @@ async def upload_file(files: t.List[UploadFile] = File(...)):
             with open(save_file_name, "wb") as fw:
                 fw.write(res)
             fileNameList.append(file.filename)
-        return Response200(msg="文件读取成功",data={"filename": fileNameList})
+        return Response200(msg="文件读取成功", data={"filename": fileNameList})
     except Exception as e:
         return Response400(msg="保存文件出现错误："+str(e))
-
-
 
 
 @file_router.put("/xlsxsqls")
@@ -76,7 +76,8 @@ async def read_xlsx_to_sql(db=Depends(get_db)):
     print("read_xlsx")
     fileNames = os.listdir(config.SAVE_FILE_DIR)
     for name in fileNames:
-        result = pd.read_excel(config.SAVE_FILE_DIR + "\\" + name)  # 不要加 header 默认都无列名
+        result = pd.read_excel(config.SAVE_FILE_DIR +
+                               "\\" + name)  # 不要加 header 默认都无列名
         term = name[-7:-5]
         if name[0] == 'C' or name[0] == 'Z' or name[0] == 'X':
             stuClass = name[:6]
@@ -90,9 +91,9 @@ async def read_xlsx_to_sql(db=Depends(get_db)):
         #     "term": term
         # })
         if name[-8] == 'S':
-            await operation_student(db,result, stuClass)
-            await operation_courses(db,result, term)
-            await operation_scores(db,result, grade, term)
+            await operation_student(db, result, stuClass)
+            await operation_courses(db, result, term)
+            await operation_scores(db, result, grade, term)
             pass
         elif name[-8] == 'A':
             await operation_stuAnalysis(result, stuClass, term)
@@ -100,7 +101,7 @@ async def read_xlsx_to_sql(db=Depends(get_db)):
     return Response200(msg="导入数据库成功")
 
 
-async def operation_stuAnalysis(db:Session,result,stuClass,term):
+async def operation_stuAnalysis(db: Session, result, stuClass, term):
     """
     将学业分析写入数据库
     :param result:
@@ -136,7 +137,8 @@ async def operation_stuAnalysis(db:Session,result,stuClass,term):
                 continue
             else:
                 print("insert class commit")
-                stuAnalysis_insert = models.StuAnalysis(stuID=stuID,stuName=stuName,stuType=stuType,term=term,stuClass=stuClass,content1=content)
+                stuAnalysis_insert = models.StuAnalysis(
+                    stuID=stuID, stuName=stuName, stuType=stuType, term=term, stuClass=stuClass, content1=content)
                 db.add(stuAnalysis_insert)
                 db.commit()
                 db.refresh(stuAnalysis_insert)
@@ -156,12 +158,13 @@ async def operation_stuAnalysis(db:Session,result,stuClass,term):
             # print(stuID,academicType,term,grade,academicContent)
 
             # stuAnalysis_sql_stu = StuAnalysis.query.filter((StuAnalysis.stuID == stuID) & (StuAnalysis.stuType == stuType) & (StuAnalysis.term == term)).first()
-            stuAnalysis_sql_stu = db.query(models.StuAnalysis).filter((models.StuAnalysis.stuID == stuID) & (models.StuAnalysis.stuType == stuType) & (models.StuAnalysis.term == term)).first()
+            stuAnalysis_sql_stu = db.query(models.StuAnalysis).filter((models.StuAnalysis.stuID == stuID) & (
+                models.StuAnalysis.stuType == stuType) & (models.StuAnalysis.term == term)).first()
             if stuAnalysis_sql_stu:
                 continue
             else:
-                stuAnalysis_stu = models.StuAnalysis(stuID=stuID,stuName=stuName,stuType=stuType,term=term,stuClass=stuClass,
-                                              content1=selfContent,content2=monitorContent,content3=academicContent,failSubjectName=failSubjectName)
+                stuAnalysis_stu = models.StuAnalysis(stuID=stuID, stuName=stuName, stuType=stuType, term=term, stuClass=stuClass,
+                                                     content1=selfContent, content2=monitorContent, content3=academicContent, failSubjectName=failSubjectName)
                 db.add(stuAnalysis_stu)
                 db.commit()
                 db.refresh(stuAnalysis_stu)
@@ -171,8 +174,7 @@ async def operation_stuAnalysis(db:Session,result,stuClass,term):
     print("=" * 50)
 
 
-
-async def operation_scores(db:Session,result,grade,term):
+async def operation_scores(db: Session, result, grade, term):
     """
     将学生成绩写入数据库
     :param result:
@@ -190,13 +192,13 @@ async def operation_scores(db:Session,result,grade,term):
     # print(courseNames)
     shape = result.shape
     # print(result)
-    for i in range(3,shape[0]):
+    for i in range(3, shape[0]):
         stuScore = result.iloc[i].tolist()
         if str(stuScore[0])[0] == 'U':
             stuID = stuScore[0]
             stuScoreNum = stuScore[2:2+len_courese]
             # print(stuScoreNum)
-            for (courseName,score) in zip(courseNames,stuScoreNum):
+            for (courseName, score) in zip(courseNames, stuScoreNum):
                 if pd.isna(score) == False:
                     # print(stuID, courseName, score, grade)
                     if type(score) == int:
@@ -207,16 +209,18 @@ async def operation_scores(db:Session,result,grade,term):
                             score = score.split('/')[0]  # 切分 27/60
                         elif (score_sp[1].isdigit()):
                             score = score.split('/')[1]
-                    if not re.search(r'\d',score):
+                    if not re.search(r'\d', score):
                         # 不包含数字 如 缺交作业/
                         score = 0
                     # score_sql = Scores.query.filter((Scores.stuID == stuID) & (Scores.courseName == courseName)).first()
-                    score_sql = db.query(models.Scores).filter((models.Scores.stuID == stuID) & (models.Scores.courseName == courseName)).first()
+                    score_sql = db.query(models.Scores).filter((models.Scores.stuID == stuID) & (
+                        models.Scores.courseName == courseName)).first()
                     if score_sql:
                         # Scores.query().filter((Scores.stuID == stuID) & (Scores.courseName == courseName)).delete()
                         continue
                     else:
-                        score_insert = models.Scores(stuID=stuID,courseName=courseName,score=score,grade=grade,term=term)
+                        score_insert = models.Scores(
+                            stuID=stuID, courseName=courseName, score=score, grade=grade, term=term)
                         db.add(score_insert)
                         db.commit()
                         db.refresh(score_insert)
@@ -226,8 +230,7 @@ async def operation_scores(db:Session,result,grade,term):
     print("=" * 50)
 
 
-
-async def operation_courses(db:Session,result,term):
+async def operation_courses(db: Session, result, term):
     """
     将课程信息写入数据库
     :param result:
@@ -240,10 +243,11 @@ async def operation_courses(db:Session,result,term):
     credits = result.iloc[3].tolist()
     creditsNew = [x for x in credits if pd.isna(x) == False]
     # print(creditsNew)
-    for (x,y) in zip(coursersNew,creditsNew):
+    for (x, y) in zip(coursersNew, creditsNew):
         # print((x,y))
         # course_sql = Courses.query.filter((Courses.courseName == x) & (Courses.term == term)).first()
-        course_sql = db.query(models.Courses).filter((models.Courses.courseName == x) & (models.Courses.term == term)).first()
+        course_sql = db.query(models.Courses).filter(
+            (models.Courses.courseName == x) & (models.Courses.term == term)).first()
         if course_sql:
             # Student.query().filter(Student.stuID == x).delete()
             continue
@@ -258,7 +262,7 @@ async def operation_courses(db:Session,result,term):
     print("=" * 50)
 
 
-async def operation_student(db:Session,result,stuClass):
+async def operation_student(db: Session, result, stuClass):
     """
     将学生信息写入数据库
     :param result: pandas读入的成绩单数据
@@ -267,7 +271,7 @@ async def operation_student(db:Session,result,stuClass):
     print("operation_scores")
     # 课程名称 & 学分
     # 学号
-    stuIDList = result.iloc[:,[0]].values
+    stuIDList = result.iloc[:, [0]].values
     stuIDList = stuIDList.reshape(-1)
     stuNewIDList = [x for x in stuIDList if pd.isna(x) == False]
     stuNewIDList = stuNewIDList[2:]
@@ -275,8 +279,9 @@ async def operation_student(db:Session,result,stuClass):
     stuNameList = result.iloc[:, [1]].values
     stuNameList = stuNameList.reshape(-1)
     stuNewNameList = [x for x in stuNameList if pd.isna(x) == False]
-    for (x,y) in zip(stuNewIDList,stuNewNameList):
-        student_sql = db.query(models.Student).filter(models.Student.stuID == x).first()
+    for (x, y) in zip(stuNewIDList, stuNewNameList):
+        student_sql = db.query(models.Student).filter(
+            models.Student.stuID == x).first()
 
         if student_sql:
             # db.session.query(Note).filter(Note.title=='测试').delete()
@@ -293,3 +298,49 @@ async def operation_student(db:Session,result,stuClass):
     print("=" * 50)
     print("finish operation_scores")
     print("=" * 50)
+
+
+@file_router.get("/updateState")
+async def modifyReadState(name: str, db: Session = Depends(get_db)):
+    """
+    修改读取方式
+    """
+    result = db.query(models.ResultReadState).filter(
+        models.ResultReadState.name == name).first()
+
+    if (result == None):
+        return Response400(msg="该关键字的状态不存在，请核验后查询")
+
+    new_state = False if result.state == True else True
+    # 为 True 表示从原始数据中读取
+    try:
+        result.state = new_state
+        # db.query(models.ResultReadState).filter(models.ResultReadState.name == name).update({models.ResultReadState.state : new_state})
+        db.commit()
+
+        return Response200(data={
+            "name": result.name,
+            "state": result.state
+        })
+    except Exception as e:
+        return Response400(msg=str(e))
+
+
+@file_router.get("/getState")
+async def modifyReadState(name: str, db: Session = Depends(get_db)):
+    """
+    获取数据读取方式
+    name:
+    state:
+        1：从原始数据中读取
+        0：从计算结果中读取
+    """
+    try:
+        result = db.query(models.ResultReadState).filter(
+            models.ResultReadState.name == name).first()
+        return Response200(data={
+            "name": result.name,
+            "state": result.state
+        })
+    except Exception as e:
+        return Response400(msg=str(e))

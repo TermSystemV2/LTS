@@ -187,7 +187,10 @@ async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = D
     redis_key = "class_by_term_chart_" + str(term)
     state = await redis_store.exists(redis_key)
     if state == 0:
-        if config.UPDATE_DATA:  # 更新数据
+        # 获取状态
+        state_read = db.query(models.ResultReadState).filter(
+        models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
+        if state_read.state:  # 更新数据
             ret = []
             # 找到四个年级
             grade_class_info = await get_each_grade_class_number(db, redis_store)
@@ -231,10 +234,17 @@ async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = D
                         classItemQuery = db.query(models.ClassByTermChart).filter(and_(
                             models.ClassByTermChart.term == classItem['term'], models.ClassByTermChart.grade == str(classItem['grade'])
                         )).first()
-                        print("="*50)
+                        # print("="*50)
                         print(classItemQuery)
                         if classItemQuery:
-                            continue
+                            db.query(models.ClassByTermChart).filter(
+                                and_(
+                                    models.ClassByTermChart.term == classItem['term'], 
+                                    models.ClassByTermChart.grade == str(classItem['grade']
+                                )
+                            )).delete()
+                            # db.delete(isInTable)
+                            db.commit()
                         print("将 班级维度的表数据计算 结果存入数据库 ...")
                         classItemInsert = models.ClassByTermChart(
                             term=classItem['term'],
@@ -263,9 +273,11 @@ async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = D
                         "failedRate": eval(dbItem.failedRate)  if dbItem.classNameList != '' else [],
                     }
                 )
-        
-        # 将数据写入 redis
-        await redis_store.setex(redis_key, config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES, json.dumps(ret, ensure_ascii=False))
+        if len(ret) != 0:
+            # 将数据写入 redis
+            await redis_store.setex(redis_key, config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES, json.dumps(ret, ensure_ascii=False))
+        else:
+            return Response400(data="中间结果数据库中暂时无数据，请在文件上传页面切换读取数据方式为从原始数据读取之后再请求")
     else:
         ret = json.loads(await redis_store.get(redis_key))
 

@@ -16,7 +16,7 @@
 			</div>
 			<div class="handle-box">
 				<el-select v-model="courseName" placeholder="请选择课程" class="handle-select mr10" @change="$forceUpdate()">
-					<el-option v-for="course in coursesData" :label="course.label" :value="course.label">
+					<el-option v-for="course in coursesData" :key="course.label" :value="course.value">
 					</el-option>
 				</el-select>
 				<el-button type="primary" :icon="Search" @click="handleSearchCourse(courseName)">搜索</el-button>

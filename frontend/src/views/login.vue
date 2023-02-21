@@ -4,14 +4,14 @@
 			<div class="ms-title">学业分析系统</div>
 			<el-form :model="loginForm" :rules="rules" ref="loginFormRef" label-width="0px" class="ms-content">
 				<el-form-item prop="username">
-					<el-input v-model="loginForm.username" placeholder="username">
+					<el-input v-model="loginForm.username" placeholder="用户名">
 						<template #prepend>
 							<el-button :icon="User"></el-button>
 						</template>
 					</el-input>
 				</el-form-item>
 				<el-form-item prop="password">
-					<el-input type="password" placeholder="password" v-model="loginForm.password"
+					<el-input type="password" placeholder="密码" v-model="loginForm.password"
 						@keyup.enter="submitForm(loginFormRef)" show-password>
 						<template #prepend>
 							<el-button :icon="Lock"></el-button>
@@ -21,7 +21,9 @@
 				<div class="login-btn">
 					<el-button type="primary" @click="submitForm(loginFormRef)">登录</el-button>
 				</div>
-				<p class="login-tips">Tips : 用户名和密码随便填。</p>
+				<p class="login-tips">
+					管理员用户名：admin,密码：123123<br>
+					普通用户名：test4,密码：123456</p>
 			</el-form>
 		</div>
 	</div>
@@ -41,19 +43,20 @@ import { login } from '../api/index'
 interface LoginInfo {
 	username: string;
 	password: string;
-}
-
+	grant_type:string;
+	scope:string;
+	client_id:string;
+	client_secret:string;
+};
 const router = useRouter();
 const loginForm = reactive<LoginInfo>({
-	username: 'admin',
-	password: '123123'
+	username: '',
+	password: '',
+	grant_type:'',
+	scope:'',
+	client_id:'',
+	client_secret:''
 });
-// const data = reactive({
-// 	loginForm:{
-// 		username: '',
-// 		password: ''
-// 	}
-// })
 const rules: FormRules = {
 	username: [
 		{
@@ -70,24 +73,16 @@ const submitForm = (formEl: FormInstance | undefined) => {
 	if (!formEl) return;
 	formEl.validate((valid: boolean) => {
 		if (valid) {
-			// login(loginForm).then(res=>{
-			// 	console.log(res);
-			// 	localStorage.setItem('token',res.data.token)
-			// 	localStorage.setItem('ms_username', loginForm.username);
-			// 	const keys = permiss.defaultList[loginForm.username == 'admin' ? 'admin' : 'user'];
-			// 	permiss.handleSet(keys);
-			// 	localStorage.setItem('ms_keys', JSON.stringify(keys))
-			// 	router.push('/')
-			// 	ElMessage.success('登录成功')
-			// })
-			
-			// ;
-			localStorage.setItem('ms_username', loginForm.username);
-			const keys = permiss.defaultList[loginForm.username == 'admin' ? 'admin' : 'user'];
-			permiss.handleSet(keys);
-			localStorage.setItem('ms_keys', JSON.stringify(keys))
-			router.push('/')
-			ElMessage.success('登录成功');
+			login(loginForm).then(res=>{
+				console.log(res);
+				localStorage.setItem('token',res.data.access_token)
+				localStorage.setItem('ms_username', loginForm.username);
+				const keys = permiss.defaultList[loginForm.username == 'admin' ? 'admin' : 'user'];
+				permiss.handleSet(keys);
+				localStorage.setItem('ms_keys', JSON.stringify(keys))
+				router.push('/')
+				ElMessage.success('登录成功')
+			});
 		} else {
 			ElMessage.error('登录失败');
 			return false;

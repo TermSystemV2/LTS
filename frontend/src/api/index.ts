@@ -11,13 +11,23 @@ export const fetchData = () => {
 interface LoginInfo {
 	username: string;
 	password: string;
+	grant_type:string;
+	scope:string;
+	client_id:string;
+	client_secret:string;
 }
 
 export const login = (data:LoginInfo) => {
+    let grant_type = data.grant_type;
+    let username = data.username;
+    let password = data.password;
+    let scope = data.scope;
+    let client_id = data.client_id;
+    let client_secret = data.client_secret;
     return request({
-        url: 'https://www.fastmock.site/mock/7fbb9df1febbca8eea1742599adec374/test/login',
+        url: 'proxy/apis/v1/login',
         method: 'post',
-        data
+        data:'grant_type='+grant_type+'&username='+username+'&password='+password+'&scope='+scope+'&client_id='+client_id+'&client_secret='+client_secret
     });
 };
 
@@ -69,5 +79,45 @@ export const fetchStudntInfoData = (term:String) => {
     return request({
         url: 'proxy/apis/v1/studentInfo/grade/?grade='+term,
         method: 'get'
+    });
+};
+
+export const fetchStudentClasssesData = () => {
+    return request({
+        url: 'proxy/apis/v1/stuclasses',
+        method: 'get'
+    });
+};
+
+export const fetchAnalysisData = (term: String,classesName: String) => {
+    return request({
+        url: 'proxy/apis/v1/students/analysis',
+        method: 'post',
+        data:{
+            "stuTermBar": term,
+            "stuClassID": classesName
+          }
+    });
+};
+
+export const fetchUsersData = () => {
+    return request({
+        url: 'proxy/apis/v1/users',
+        method: 'get'
+    });
+};
+
+interface userInfo {
+	cID: string;
+	cName: string;
+	is_active: boolean;
+	is_superuser: boolean;
+    password: string
+}
+export const addUserData = (data:userInfo) => {
+    return request({
+        url: 'proxy/apis/v1/users',
+        method: 'post',
+        data
     });
 };

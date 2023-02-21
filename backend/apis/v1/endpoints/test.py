@@ -40,3 +40,14 @@
 #     return Response200(data=ret)
 
 
+class TestClass:
+    
+    config = 1
+    
+if __name__ == '__main__':
+    
+    a = TestClass()
+    print(a.config)
+    a.config = 2
+    print(a.config)
+    

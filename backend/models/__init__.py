@@ -6,4 +6,4 @@ from .stuAnalysis import StuAnalysis
 from .teacher import Teacher
 from .student import Student
 from .fileDB import FileDB
-from .resultTable import GradeByTerm,ClassByTermChart,ClassByTermTable,StudentInfo
+from .resultTable import GradeByTerm,ClassByTermChart,ClassByTermTable,StudentInfo,CourseByTermTable,ResultReadState

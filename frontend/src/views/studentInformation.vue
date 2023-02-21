@@ -172,14 +172,6 @@ const getData = (grade: String) => {
 		tableData.value = res.data.data;
 		tableDataCopy.value = tableData.value;
 		console.log(tableData.value);
-		// coursesData.value = [];
-		// for (var key in tableData.value) {
-		// 	coursesData.value.push({
-		// 		value: tableData.value[key].courseName,
-		// 		label: tableData.value[key].courseName
-		// 	})
-		// }
-		// console.log(coursesData);
 	});
 };
 getData(grade);
