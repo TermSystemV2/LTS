@@ -1,5 +1,17 @@
 <template>
 	<div>
+		<el-drawer
+			v-model="table"
+			:title="drawerTitle"
+			direction="rtl"
+			size="50%"
+		>
+			<el-table :data="gridData">
+			<el-table-column property="grade" label="Grade" width="150" />
+			<el-table-column property="class" label="Class" width="200" />
+			<el-table-column property="name" label="Name" />
+			</el-table>
+		</el-drawer>
 		<div class="container">
 			<div class="handle-box">
 				<el-select v-model="term" placeholder="请选择学期" class="handle-select mr10" @change="$forceUpdate()">
@@ -15,29 +27,38 @@
 				<el-button type="primary" :icon="Search" @click="handleSearchTerm(term)">搜索</el-button>
 			</div>
 			<div class="handle-box">
-				<el-select v-model="courseName" placeholder="请选择课程" class="handle-select mr10" @change="$forceUpdate()">
+				<el-select v-model="courseName" placeholder="请选择课程"  clearable class="handle-select mr10"
+				@change="$forceUpdate()" @clear="clearCourses">
 					<el-option v-for="course in coursesData" :key="course.label" :value="course.value">
 					</el-option>
 				</el-select>
 				<el-button type="primary" :icon="Search" @click="handleSearchCourse(courseName)">搜索</el-button>
 				<!-- <el-button type="primary" :icon="Plus">新增</el-button> -->
 			</div>
-			<el-table :data="tableData" border class="table" ref="multipleTable" header-cell-class-name="table-header"
+			<div class="quickCourses">
+				<el-radio-group v-model="radioCourse" @change="chooseCourse">
+					<el-radio :label="course.label" v-for="course in coursesData"
+					:key="course.label" class="myradio">{{course.value}}</el-radio>
+				</el-radio-group>
+			</div>
+			<div>
+				<el-table :data="tableData" border class="table" ref="multipleTable" header-cell-class-name="table-header"
 				:row-style="{height: '500px'}" :header-cell-style="{textAlign: 'center'}" :cell-style="{ textAlign: 'center' }">
 				<!-- <el-table-column prop="id" label="ID" width="55" align="center"></el-table-column> -->
-				<el-table-column prop="courseName" label="课程名称" width="120">
-					<template #default="scope" class="template">
+				<el-table-column prop="courseName" label="课程名称" width="140">
+					<template #default="scope">
 						{{scope.row.courseName}}
 						<p class="fail_text">（共计{{scope.row.sumFailedNums}}人次）</p>
+						<el-button type="primary" bg @click="openDrawer(scope.row.courseName)">挂科学生详情</el-button>
 					</template>
 				</el-table-column>
 				<el-table-column label="考试通过情况">
-					<template #default="scope" class="template">
+					<template #default="scope">
 						<CourseBar :chartData="scope.row" />
 					</template>
 				</el-table-column>
 				<el-table-column label="分数分段情况">
-					<template #default="scope" class="template">
+					<template #default="scope">
 						<CourseLine :chartData="scope.row" />
 					</template>
 				</el-table-column>
@@ -76,10 +97,7 @@
 					</template>
 				</el-table-column> -->
 			</el-table>
-			<div class="pagination">
-				<el-pagination background layout="total, prev, pager, next" :current-page="query.pageIndex"
-					:page-size="query.pageSize" :total="pageTotal" @current-change="handlePageChange"></el-pagination>
-			</div>
+		</div>
 		</div>
 
 		<!-- 编辑弹出框 -->
@@ -103,12 +121,12 @@
 </template>
 
 <script setup lang="ts" name="basetable">
-import { ref, reactive } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ref, reactive, onMounted } from 'vue';
+import { ElDrawer,ElMessage, ElMessageBox } from 'element-plus';
 import { Delete, Edit, Search, Plus } from '@element-plus/icons-vue';
 import { fetchData, fetchCoursesData } from '../api/index';
 import CourseBar from "../components/courseBar.vue";
-import CourseLine from '../components/courseLine.vue';
+import CourseLine from '../components/courseLine1.vue';
 
 interface TableItem {
 	courseName: string;
@@ -130,11 +148,40 @@ const query = reactive({
 	pageSize: 10
 });
 let term = '11'
-let courseName = ''
+const radioCourse = ref("");
+const courseName = ref("");
 const tableData = ref<TableItem[]>([]);
 const tableDataCopy = ref<TableItem[]>([]);
 let coursesData = ref<ListItem[]>([]);
-const pageTotal = ref(0);
+
+const table = ref(false)
+const drawerTitle = ref("");
+const gridData = [
+  {
+    grade: '21级',
+    class: '2103班',
+    name: '陈阵阳',
+  },
+  {
+    grade: '22级',
+    class: '2208班',
+    name: '王文婕',
+  },
+  {
+    grade: '22级',
+    class: '2208班',
+    name: '刘夕源',
+  },
+  {
+    grade: '22级',
+    class: '2208班',
+    name: '周佳',
+  },
+]
+
+onMounted(() => {
+	getData(term);
+})
 // 获取表格数据
 const getData = (term: String) => {
 	// fetchData().then(res => {
@@ -143,39 +190,58 @@ const getData = (term: String) => {
 	// 	console.log(tableData.value);
 	// });
 	fetchCoursesData(term).then(res => {
-		tableData.value = res.data.data;
-		tableDataCopy.value = tableData.value;
-		console.log(tableData.value);
+		courseName.value = "";
+		tableData.value = [];
+		tableDataCopy.value = res.data.data;
+		console.log(tableDataCopy.value);
 		coursesData.value = [];
-		for(var key in tableData.value){
+		for(var key in tableDataCopy.value){
 			coursesData.value.push({
-				value: tableData.value[key].courseName,
-				label: tableData.value[key].courseName
+				value: tableDataCopy.value[key].courseName,
+				label: tableDataCopy.value[key].courseName
 			})
 		}
-		console.log(coursesData);
+		// console.log(coursesData);
 	});
 };
-getData(term);
 
 // 查询操作
-const handleSearchTerm = (term: String) => {
-	query.pageIndex = 1;
-	console.log('term:' + term);
+const handleSearchTerm = (term: String) => { // 根据学期搜索
 	getData(term);
 };
-const handleSearchCourse = (courseName: String) => {
-	console.log('course:' + courseName);
+const handleSearchCourse = (courseName: String) => { // 根据课程名称搜索
+	// console.log('course:' + courseName);
+	// console.log(tableData.value);
+	// console.log(tableDataCopy.value);
+	console.log(courseName);
+	radioCourse.value = "";
+	
 	tableData.value = tableDataCopy.value;
 	tableData.value = tableData.value.filter((item) => {
         return item.courseName == courseName
     })
 };
-// 分页导航
-const handlePageChange = (val: number) => {
-	query.pageIndex = val;
-	getData(term);
-};
+const clearCourses = () => { // 清除所选课程
+	// console.log(tableDataCopy.value);
+	// radioCourse.value = "";
+	// tableData.value = [];
+}
+
+const chooseCourse = () => { // 选择某个课程
+	console.log(radioCourse.value);
+	// showTable.value = true;
+	courseName.value = "";
+	tableData.value = tableDataCopy.value;
+	tableData.value = tableData.value.filter((item) => {
+        return item.courseName == radioCourse.value
+    })
+}
+
+const openDrawer = (val:string) => { // 点击打开抽屉
+	table.value = true;
+	console.log(val);
+	drawerTitle.value = "《"+val+"》挂科同学详情";
+}
 
 // // 删除操作
 // const handleDelete = (index: number) => {
@@ -249,5 +315,8 @@ const handlePageChange = (val: number) => {
 .fail_text {
 	color: #ff0000;
 	font-size: 10px;
+}
+.myradio {
+	width: 25%;
 }
 </style>

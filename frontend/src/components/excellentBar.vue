@@ -12,6 +12,7 @@ import { fetchExcellentBarData } from '../api/index';
 
 const excellentBarRef = ref<HTMLDivElement>()
 onMounted(() => {
+    console.log(excellentBarRef);
     fetchExcellentBarData().then(res => {
         let data = res.data.data;
         let year = []
@@ -27,6 +28,7 @@ onMounted(() => {
         var option = {
             tooltip: {
                 trigger: 'axis',
+                backgroundColor: '#fff',
                 axisPointer: {
                     type: 'cross',
                     crossStyle: {
@@ -58,9 +60,7 @@ onMounted(() => {
                 {
                     type: 'value',
                     name: '个数',
-                    min: 0,
-                    max: 35,
-                    interval: 5,
+                    minInterval: 1,
                     axisLabel: {
                         formatter: '{value} 个'
                     }
@@ -68,9 +68,6 @@ onMounted(() => {
                 {
                     type: 'value',
                     name: '比例',
-                    min: 0,
-                    max: 100,
-                    interval: 10,
                     axisLabel: {
                         formatter: '{value} %'
                     }
@@ -80,23 +77,55 @@ onMounted(() => {
                 {
                     name: '个数',
                     type: 'bar',
+                    smooth: false,
                     tooltip: {
                         valueFormatter: function (value: string) {
                             return value + ' 个';
                         }
                     },
-                    data: excellentNum
+                    data: excellentNum,
+                    itemStyle: {
+                        normal: {
+                            label: {
+                                show: true,
+                                position: 'inside',
+                                textStyle: {
+                                    color: 'black',
+                                    fontSize: 12,
+                                },
+                                formatter: function(realData:any) {
+                                    return '个数:'+realData.value
+                                }
+                            }
+                        }
+                    }
                 },
                 {
                     name: '比例',
                     type: 'line',
+                    smooth: false,
                     yAxisIndex: 1,
                     tooltip: {
                         valueFormatter: function (value: string) {
                             return value + ' %';
                         }
                     },
-                    data: excellentRate
+                    data: excellentRate,
+                    itemStyle: {
+                        normal: {
+                            label: {
+                                show: true,
+                                position: 'top',
+                                textStyle: {
+                                    color: 'black',
+                                    fontSize: 12,
+                                },
+                                formatter: function(realData:any) {
+                                    return '比例:'+realData.value+'%'
+                                }
+                            }
+                        }
+                    }
                 }
             ]
         };

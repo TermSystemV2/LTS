@@ -15,9 +15,16 @@
 </template>
 
 <script setup lang="ts" name="basecharts">
+import { onMounted } from "vue-demi";
 import ExcellentBar from "../components/excellentBar.vue";
-import ExcellentLine from "../components/excellentLine.vue";
+import ExcellentLine from "../components/excellentLine1.vue";
+import { useTagsStore } from '../store/tags';
 
+const tags = useTagsStore();
+console.log(tags.nameList);
+onMounted(() => {
+	console.log("excellent");
+})
 </script>
 
 <style scoped>

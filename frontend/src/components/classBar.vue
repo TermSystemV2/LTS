@@ -26,6 +26,7 @@ onMounted(() => {
         var option = {
             tooltip: {
                 trigger: 'axis',
+                backgroundColor: '#fff',
                 axisPointer: {
                     type: 'cross',
                     crossStyle: {
@@ -57,9 +58,7 @@ onMounted(() => {
                 {
                     type: 'value',
                     name: '个数',
-                    min: 0,
-                    max: 35,
-                    interval: 5,
+                    minInterval: 1,
                     axisLabel: {
                         formatter: '{value} 个'
                     }
@@ -67,9 +66,6 @@ onMounted(() => {
                 {
                     type: 'value',
                     name: '比例',
-                    min: 0,
-                    max: 100,
-                    interval: 10,
                     axisLabel: {
                         formatter: '{value} %'
                     }
@@ -79,23 +75,55 @@ onMounted(() => {
                 {
                     name: '挂科人数',
                     type: 'bar',
+                    smooth: false,
                     tooltip: {
                         valueFormatter: function (value: string) {
                             return value + ' 个';
                         }
                     },
-                    data: failedNum
+                    data: failedNum,
+                    itemStyle: {
+                        normal: {
+                            label: {
+                                show: true,
+                                position: 'inside',
+                                textStyle: {
+                                    color: 'black',
+                                    fontSize: 12,
+                                },
+                                formatter: function(realData:any) {
+                                    return '个数:'+realData.value
+                                }
+                            }
+                        }
+                    }
                 },
                 {
                     name: '挂科率',
                     type: 'line',
+                    smooth: false,
                     yAxisIndex: 1,
                     tooltip: {
                         valueFormatter: function (value: string) {
                             return value + ' %';
                         }
                     },
-                    data: failedRate
+                    data: failedRate,
+                    itemStyle: {
+                        normal: {
+                            label: {
+                                show: true,
+                                position: 'top',
+                                textStyle: {
+                                    color: 'black',
+                                    fontSize: 12,
+                                },
+                                formatter: function(realData:any) {
+                                    return '比例:'+realData.value+'%'
+                                }
+                            }
+                        }
+                    }
                 }
             ]
         };
@@ -109,7 +137,7 @@ onMounted(() => {
 </script>
 <style scoped>
 .chart {
-    width: 1400px;
+    width: 100%;
     height: 500px;
 }
 </style>

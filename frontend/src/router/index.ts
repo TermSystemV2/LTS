@@ -48,7 +48,8 @@ const routes:RouteRecordRaw[] = [
                 name: "excellent",
                 meta: {
                     title: '优良学风班情况',
-                    permiss: '11'
+                    permiss: '11',
+                    keepAlive: true,
                 },
                 component: () => import ( /* webpackChunkName: "charts" */ "../views/excellent.vue")
             }, {
@@ -56,7 +57,8 @@ const routes:RouteRecordRaw[] = [
                 name: "courseDimension",
                 meta: {
                     title: '课程维度',
-                    permiss: '11'
+                    permiss: '11',
+                    keepAlive: true,
                 },
                 component: () => import ( /* webpackChunkName: "charts" */ "../views/courseDimension.vue")
             }, {
@@ -64,7 +66,8 @@ const routes:RouteRecordRaw[] = [
                 name: "gradesDimension",
                 meta: {
                     title: '年级维度',
-                    permiss: '11'
+                    permiss: '11',
+                    keepAlive: true,
                 },
                 component: () => import ( /* webpackChunkName: "charts" */ "../views/gradesDimension.vue")
             },{
@@ -72,15 +75,26 @@ const routes:RouteRecordRaw[] = [
                 name: "classesDimension",
                 meta: {
                     title: '班级维度',
-                    permiss: '11'
+                    permiss: '11',
+                    keepAlive: true,
                 },
                 component: () => import ( /* webpackChunkName: "charts" */ "../views/classesDimension.vue")
+            }, {
+                path: "/filesUpload",
+                name: "filesUpload",
+                meta: {
+                    title: '文件上传',
+                    permiss: '11',
+                    keepAlive: true,
+                },
+                component: () => import ( /* webpackChunkName: "charts" */ "../views/upload.vue")
             }, {
                 path: "/studentInformation",
                 name: "studentInformation",
                 meta: {
                     title: '学生信息',
-                    permiss: '11'
+                    permiss: '11',
+                    keepAlive: true,
                 },
                 component: () => import ( /* webpackChunkName: "charts" */ "../views/studentInformation.vue")
             },{
@@ -88,7 +102,8 @@ const routes:RouteRecordRaw[] = [
                 name: "failureAnalysis",
                 meta: {
                     title: '不及格分析',
-                    permiss: '11'
+                    permiss: '11',
+                    keepAlive: true,
                 },
                 component: () => import ( /* webpackChunkName: "charts" */ "../views/failureAnalysis.vue")
             },{

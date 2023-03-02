@@ -21,6 +21,7 @@ export default defineConfig({
 	},
 	// 解决跨域问题
 	server: {
+		hmr: true,
 		host: '0.0.0.0',
 		port: 3000,
 		proxy: {

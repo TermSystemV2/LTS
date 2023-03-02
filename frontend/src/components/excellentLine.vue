@@ -15,6 +15,8 @@ onMounted(() => {
     fetchExcellentLineData().then(res => {
         console.log(res.data);
         let data = res.data.data;
+        console.log(data);
+        
         let year = [];
         let series = []
         for (var key in data) {
@@ -22,13 +24,29 @@ onMounted(() => {
             year.push(year_name)
             var dict = {
                 name: year_name,
-                type: 'line',
+                type: 'bar',
+                smooth: true,
                 tooltip: {
                     valueFormatter: function (value: string) {
                         return value + ' %';
                     }
                 },
-                data: [] as any
+                data: [] as any,
+                itemStyle: {
+                        normal: {
+                            label: {
+                                show: true,
+                                position: 'top',
+                                textStyle: {
+                                    color: 'black',
+                                    fontSize: 12,
+                                },
+                                formatter: function(realData:any) {
+                                    return realData.value+'%'
+                                }
+                            }
+                        }
+                    }
             };
             let d = data[key]
             let arr = new Array(3).fill(0);
@@ -53,7 +71,8 @@ onMounted(() => {
                 text: ''
             },
             tooltip: {
-                trigger: 'axis'
+                trigger: 'axis',
+                backgroundColor: '#fff',
             },
             legend: {
                 data: year

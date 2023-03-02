@@ -15,7 +15,7 @@ const props = defineProps({
 });
 const studentInfoBarRef = ref<HTMLDivElement>()
 onMounted(() => {
-    console.log('props.chartData:',props.chartData);
+    // console.log('props.chartData:',props.chartData);
     let data = props.chartData;
     let totalWeightedScoreTerm = data?.totalWeightedScoreTerm;
     let failedSubjectNumsTerm = data?.failedSubjectNumsTerm;
@@ -25,6 +25,7 @@ onMounted(() => {
     var option = {
         tooltip: {
             trigger: 'axis',
+            backgroundColor: '#fff',
             axisPointer: {
                 type: 'cross',
                 crossStyle: {
@@ -56,9 +57,6 @@ onMounted(() => {
             {
                 type: 'value',
                 name: '分数',
-                min: 0,
-                max: 100,
-                interval: 10,
                 axisLabel: {
                     formatter: '{value} 分'
                 }
@@ -66,9 +64,7 @@ onMounted(() => {
             {
                 type: 'value',
                 name: '个数',
-                min: 0,
-                max: 35,
-                interval: 5,
+                minInterval: 1,
                 axisLabel: {
                     formatter: '{value} 个'
                 }
@@ -83,7 +79,22 @@ onMounted(() => {
                         return value + ' 分';
                     }
                 },
-                data: totalWeightedScoreTerm
+                data: totalWeightedScoreTerm,
+                itemStyle: {
+                    normal: {
+                        label: {
+                            show: true,
+                            position: 'top',
+                            textStyle: {
+                                color: 'black',
+                                fontSize: 12,
+                            },
+                            formatter: function(realData:any) {
+                                return '分数:'+realData.value+'分'
+                            }
+                        }
+                    }
+                }
             },
             {
                 name: '学年挂科数量',
@@ -94,7 +105,22 @@ onMounted(() => {
                         return value + ' 个';
                     }
                 },
-                data: failedSubjectNumsTerm
+                data: failedSubjectNumsTerm,
+                itemStyle: {
+                    normal: {
+                        label: {
+                            show: true,
+                            position: 'top',
+                            textStyle: {
+                                color: 'black',
+                                fontSize: 12,
+                            },
+                            formatter: function(realData:any) {
+                                return '个数:'+realData.value+'个'
+                            }
+                        }
+                    }
+                }
             }
         ]
     };
@@ -108,7 +134,7 @@ onMounted(() => {
 </script>
 <style scoped>
 .chart {
-    width: 800px;
+    width: 660px;
     height: 500px;
 }
 </style>

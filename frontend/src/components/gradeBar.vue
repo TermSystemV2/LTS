@@ -17,7 +17,29 @@ onMounted(() => {
     watchEffect(()=>{
         console.log('props.chartData:', props.chartData);
         let data = props.chartData;
+        console.log(props.chartData);
+        
         let courseNameList = data?.courseName;
+        let courseNameListCopy = courseNameList;
+        let normalCourses = [];
+        for (let i=0;i<courseNameListCopy.length;i += 1) {
+            // console.log(courseNameListCopy[i]);
+            let courseArr = "";
+            for (var j=0;j<courseNameListCopy[i].length;j++) {
+                // console.log(courseNameListCopy[i][j]);
+                if (courseNameListCopy[i][j] == '︵') {
+                    courseArr += '（';
+                } else if (courseNameListCopy[i][j] == '︶') {
+                    courseArr += '）';
+                } else {
+                    courseArr += courseNameListCopy[i][j];
+                }
+            }
+            normalCourses.push(courseArr);
+        }
+        console.log(normalCourses);
+        
+        
         let failedNum = data?.failed_nums;
         let failedRate = data?.failed_rates;
         // 基于准备好的dom，初始化echarts实例
@@ -25,6 +47,7 @@ onMounted(() => {
         var option = {
             tooltip: {
                 trigger: 'axis',
+                backgroundColor: '#fff',
                 axisPointer: {
                     type: 'cross',
                     crossStyle: {
@@ -46,14 +69,32 @@ onMounted(() => {
             xAxis: [
                 {
                     type: 'category',
-                    data: courseNameList,
+                    data: normalCourses,
+                    // data: courseNameList,
                     axisPointer: {
                         type: 'shadow'
                     },
                     axisLabel: {
+                        show: true,
+                        interval: 0,
+                        grid: {left:'10%', bottom:'35%'},
+                        // interval:0,
+                        // rotate:90,//倾斜度 -90 至 90 默认为0
+                        // margin:5,
                         //  让x轴文字方向为竖向
+                        // formatter: function (value: string) {
+                        //     return value.split('').join('\n')
+                        // }
                         formatter: function (value: string) {
-                            return value.split('').join('\n')
+                            if (value.indexOf('（') != -1) {
+                                return value.split('（').join('\n'+'（')
+                            } else {
+                                let res = "";
+                                for (let i = 0;i<value.length;i += 4) {
+                                    res += value.substring(i,i+4)+'\n'
+                                } 
+                                return res
+                            }
                         }
                     },
                 
@@ -63,9 +104,7 @@ onMounted(() => {
                 {
                     type: 'value',
                     name: '个数',
-                    min: 0,
-                    max: 10,
-                    interval: 1,
+                    minInterval: 1,
                     axisLabel: {
                         formatter: '{value} 个'
                     }
@@ -73,9 +112,6 @@ onMounted(() => {
                 {
                     type: 'value',
                     name: '比例',
-                    min: 0,
-                    max: 100,
-                    interval: 10,
                     axisLabel: {
                         formatter: '{value} %'
                     }
@@ -85,23 +121,55 @@ onMounted(() => {
                 {
                     name: '挂科人数',
                     type: 'bar',
+                    smooth: false,
                     tooltip: {
                         valueFormatter: function (value: string) {
                             return value + ' 个';
                         }
                     },
-                    data: failedNum
+                    data: failedNum,
+                    itemStyle: {
+                        normal: {
+                            label: {
+                                show: true,
+                                position: 'inside',
+                                textStyle: {
+                                    color: 'black',
+                                    fontSize: 12,
+                                },
+                                formatter: function(realData:any) {
+                                    return '个数:'+realData.value
+                                }
+                            }
+                        }
+                    }
                 },
                 {
                     name: '挂科率',
                     type: 'line',
+                    smooth: false,
                     yAxisIndex: 1,
                     tooltip: {
                         valueFormatter: function (value: string) {
                             return value + ' %';
                         }
                     },
-                    data: failedRate
+                    data: failedRate,
+                    itemStyle: {
+                        normal: {
+                            label: {
+                                show: true,
+                                position: 'top',
+                                textStyle: {
+                                    color: 'black',
+                                    fontSize: 12,
+                                },
+                                formatter: function(realData:any) {
+                                    return '挂科率:'+realData.value+'%'
+                                }
+                            }
+                        }
+                    }
                 }
             ]
         };
@@ -115,7 +183,7 @@ onMounted(() => {
 </script>
 <style scoped>
 .chart {
-    width: 1400px;
+    width: 100%;
     height: 600px;
 }
 </style>

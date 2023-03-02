@@ -86,7 +86,7 @@ const items = [
 				permiss: '2'
 			},
 			{
-				index: '/upload',
+				index: '/filesUpload',
 				title: '文件上传',
 				permiss: '6'
 			}

@@ -1,12 +1,15 @@
 import json
 import logging
 import typing as t
+import os
 
 from fastapi import APIRouter, Request, Response, Depends, status, HTTPException
 from aioredis import Redis
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
 from sqlalchemy import distinct, and_, func, create_engine
+import pandas as pd
+from starlette.responses import FileResponse
 
 from apis.v1.endpoints.commonCourse import get_each_grade_class_number, get_lower_course_name
 from database.session import get_db
@@ -15,6 +18,7 @@ import schemas
 from schemas.basic import Response200, Response400
 from database.redis import course_cache
 from core.config import config
+from utils.common import to_pinyin,create_form,add_info_to_form
 
 courseDim_router = APIRouter()
 
@@ -83,6 +87,8 @@ async def get_coursers_by_term_pass(queryItem: schemas.ClassQuery, db: Session =
             low_coursename_list = await get_lower_course_name(term, gradeList, db, redis_store)
             courseNameList = [
                 courseName for courseName in courseNameList if courseName not in config.NOT_SHOW_COURSENAME]
+            courseNameList = sorted(courseNameList,key=to_pinyin)
+            
             for courseName in courseNameList:
                 tmpDict = {
                     "id": "term"+str(term),
@@ -188,6 +194,7 @@ async def get_coursers_by_term_pass(queryItem: schemas.ClassQuery, db: Session =
                 # await redis_store.setex(redis_key,config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,json.dumps(ret,ensure_ascii=False))
             else:
                 return Response400(msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空")
+            print(courseNameList)
         else:
             # 直接读取已经计算好的数据
             ret = []
@@ -211,3 +218,62 @@ async def get_coursers_by_term_pass(queryItem: schemas.ClassQuery, db: Session =
         ret = json.loads(await redis_store.get(redis_key))
 
     return Response200(data=ret)
+
+@courseDim_router.post("/scores/courses/download/<courseName>")
+async def downFailedStudet(courseItem: schemas.CourseFailedDownload, db: Session = Depends(get_db),
+                                    redis_store: Redis = Depends(course_cache)):
+    """
+    通过学期获得该学期课程的考试通过情况
+    :param queryItem:
+    :param db:
+    :param redis_store:
+    :return:
+    返回如下字段的 excel文件
+    ['序号','课程名', '班级', '学号', '姓名']
+    
+    """
+ 
+    try:
+        # 参数1：文件的路径 filename：自定义导出的文件名（需要带上格式后缀）
+        courseName = str(courseItem.courseName)
+        source_dir = "./documents/failedStudentExcel/"
+        faileed_student_excel_name = "failed_students_" + str(courseName) + ".xlsx"
+        # os.path.exists(source_dir+faileed_student_excel_name)
+        
+        ret = []
+        retDb = db.query(models.CourseByTermTable).filter(models.CourseByTermTable.courseName == courseName).all()
+        if (os.path.exists(source_dir+faileed_student_excel_name)):
+            os.remove(source_dir+faileed_student_excel_name)
+        # print("create form")
+        print(source_dir + faileed_student_excel_name)
+        FORM_HEADER = ['序号','课程名', '班级', '学号', '姓名']
+        create_form(source_dir + faileed_student_excel_name,FORM_HEADER)
+        index = 0
+        for dbItem in retDb:
+            ret.append({
+                "id": dbItem.id,
+                "term": dbItem.term,
+                "courseName": dbItem.courseName,
+                "failed_nums": eval(dbItem.failed_nums) if len(dbItem.failed_nums) != 0 else {},
+                "gradeDistribute": eval(dbItem.gradeDistribute) if len(dbItem.gradeDistribute) != 0 else {},
+                "pass_rate": eval(dbItem.pass_rate) if dbItem.pass_rate != [] else {},
+                "failStudentsList": eval(dbItem.failStudentsList) if dbItem.failStudentsList != [] else [],
+                "sumFailedNums": dbItem.sumFailedNums
+            })
+            # ['序号','课程名', '班级', '学号',"姓名"]
+            for stuInfo in ret[-1]["failStudentsList"]:
+                tmpList = [index,ret[-1]["courseName"],stuInfo[0],stuInfo[1],stuInfo[2]]
+                print(tmpList)
+                add_info_to_form(source_dir + faileed_student_excel_name,tmpList)
+                index += 1
+            
+            
+        if len(ret) == 0:
+            # 中间计算表还没计算出来
+            return Response400(msg="中间结果数据库中暂时无数据，请在文件上传页面切换读取数据方式为从原始数据读取之后再请求")
+            
+        return FileResponse(path=source_dir + faileed_student_excel_name,filename=faileed_student_excel_name)
+    except Exception as e:
+        return Response400(msg=str(e))
+
+

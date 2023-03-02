@@ -31,12 +31,28 @@ onMounted(() => {
             var dict = {
                 name: grade_name,
                 type: 'line',
+                smooth: false,
                 tooltip: {
                     valueFormatter: function (value: string) {
                         return value + ' 个';
                     }
                 },
-                data: count
+                data: count,
+                itemStyle: {
+                    normal: {
+                        label: {
+                            show: true,
+                            position: 'inside',
+                            textStyle: {
+                                color: 'black',
+                                fontSize: 12,
+                            },
+                            formatter: function(realData:any) {
+                                return realData.value+'人'
+                            }
+                        }
+                    }
+                }
             };
             series.push(dict)
         }
@@ -47,7 +63,8 @@ onMounted(() => {
                     text: ''
                 },
                 tooltip: {
-                    trigger: 'axis'
+                    trigger: 'axis',
+                    backgroundColor: '#fff',
                 },
                 legend: {
                     data: grade
@@ -73,8 +90,6 @@ onMounted(() => {
                 },
                 yAxis: {
                     type: 'value',
-                    min: 0,
-                    max: 100,
                     interval: 10,
                     axisLabel: {
                         formatter: '{value} 个'
@@ -144,7 +159,7 @@ onMounted(() => {
 </script>
 <style scoped>
 .chart {
-    width: 700px;
+    width: 100%;
     height: 500px;
 }
 </style>

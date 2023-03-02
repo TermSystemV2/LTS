@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<div class="container">
+		<div class="container" ref="stu_box">
 			<div class="handle-box">
 				<el-select v-model="grade" placeholder="请选择年级" class="handle-select mr10" @change="$forceUpdate()">
 					<el-option key="18" label="2018级" value="18"></el-option>
@@ -11,16 +11,17 @@
 				<el-button type="primary" :icon="Search" @click="handleSearchTerm(grade)">搜索</el-button>
 			</div>
 			<div class="handle-box">
-				<el-input v-model="studentID" placeholder="请输入学号" class="handle-input mr10"></el-input>
-				<el-input v-model="studentName" placeholder="请输入姓名" class="handle-input mr10"></el-input>
-				<el-button type="primary" :icon="Search" @click="handleSearchStudent(studentID,studentName)">查询</el-button>
+				<el-input v-model="studentID" placeholder="请输入学号" clearable class="handle-input mr10" @clear="clearOps"></el-input>
+				<el-input v-model="studentName" placeholder="请输入姓名" clearable class="handle-input mr10" @clear="clearOps"></el-input>
+				<el-button type="primary" :icon="Search" @click="handleSearchStudent">查询</el-button>
 				<!-- <el-button type="primary" :icon="Plus">新增</el-button> -->
 			</div>
-			<el-row v-for="(item, index) in tableData">
+			<div v-loading="loading">
+				<el-row v-for="(item, index) in showData" :key="index">
 				<el-col>
 					<!-- :data里需要是个数组 所以这里将item用[]进行包裹-->
 					<el-table :data="[item]" border class="table" ref="multipleTable"
-						header-cell-class-name="table-header" :row-style="{ height: '10px' }"
+						header-cell-class-name="table-header"
 						:header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
 						<!-- <el-table-column prop="id" label="ID" width="55" align="center"></el-table-column> -->
 						<el-table-column prop="index" label="序号" width="120">
@@ -37,7 +38,10 @@
 						</el-table-column>
 						<el-table-column prop="sumFailedCredit" label="累计不及格学分" width="150">
 						</el-table-column>
-						<el-table-column prop="failedSubjectNames" label="不及格科目具体名称" :show-overflow-tooltip="true">
+						<el-table-column prop="failedSubjectNames" label="不及格科目具体名称">
+							<!-- <template #default="props">
+								<div>{{props}}</div>
+							</template> -->
 						</el-table-column>
 					</el-table>
 					<el-table :data="[item]" border class="table" ref="multipleTable"
@@ -86,10 +90,11 @@
 					</el-table>
 				</el-col>
 			</el-row>
+			</div>
 
 			<div class="pagination">
-				<el-pagination background layout="total, prev, pager, next" :current-page="query.pageIndex"
-					:page-size="query.pageSize" :total="pageTotal" @current-change="handlePageChange"></el-pagination>
+				<el-pagination background layout="total, prev, pager, next" v-model:current-page="currentPage"
+				:total="pageTotal" :page-size="10" @current-change="handlePageChange"></el-pagination>
 			</div>
 		</div>
 
@@ -111,11 +116,12 @@
 			</template>
 		</el-dialog> -->
 	</div>
+	<!-- <el-backtop :right="100" :bottom="100" /> -->
 </template>
 
 <script setup lang="ts" name="basetable">
-import { ref, reactive } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ref, reactive, onMounted, defineProps, getCurrentInstance, inject, watch } from 'vue';
+import { ElMessage, ElMessageBox, ElBacktop } from 'element-plus';
 import { Delete, Edit, Search, Plus, User } from '@element-plus/icons-vue';
 import { fetchStudntInfoData } from '../api/index';
 import type { TableColumnCtx } from 'element-plus/es/components/table/src/table-column/defaults'
@@ -155,12 +161,16 @@ const query = reactive({
 	pageSize: 10
 });
 let grade = '18'
-let studentID = ''
-let studentName = ''
+const studentID = ref<string>('')
+const studentName = ref<string>('')
 const tableData = ref<TableItem[]>([]);
 const tableDataCopy = ref<TableItem[]>([]);
+let showData = ref<TableItem[]>([]); // 当页需要展示的学生信息数组，根据当前页码计算
 let coursesData = ref<ListItem[]>([]);
-const pageTotal = ref(0);
+let pageTotal = ref(0)
+const loading = ref(true)
+const currentPage = ref(0)
+
 // 获取表格数据
 const getData = (grade: String) => {
 	// fetchData().then(res => {
@@ -169,31 +179,57 @@ const getData = (grade: String) => {
 	// 	console.log(tableData.value);
 	// });
 	fetchStudntInfoData(grade).then(res => {
-		tableData.value = res.data.data;
-		tableDataCopy.value = tableData.value;
-		console.log(tableData.value);
+		studentID.value = "";
+		studentName.value = "";
+		// console.log(res);
+		loading.value = false;
+		if (res.data.code == 200) {
+			tableData.value = res.data.data;
+			currentPage.value = 1;
+			pageTotal.value = tableData.value.length;
+			showData.value = tableData.value.slice(0,10);
+			tableDataCopy.value = tableData.value;
+			console.log(tableData.value);
+			console.log(showData.value);
+		}
 	});
 };
 getData(grade);
 
-// 查询操作
+// 根据年级查询操作
 const handleSearchTerm = (grade: String) => {
 	query.pageIndex = 1;
 	console.log('term:' + grade);
 	getData(grade);
 };
-const handleSearchStudent = (studentID: String,studentName:String) => {
-	console.log('studentID:' + studentID);
-	console.log('studentName:' + studentName);
+const handleSearchStudent = () => { // 根据学生信息查询
+	studentID.value = studentID.value.replace(/\s/g,"");
+	studentName.value = studentName.value.replace(/\s/g,"");
+	console.log('studentID:' + studentID.value);
+	console.log('studentName:' + studentName.value);
 	tableData.value = tableDataCopy.value;
 	tableData.value = tableData.value.filter((item) => {
-		return item.stuID == studentID && item.stuName == studentName
+		return item.stuID.indexOf(studentID.value) != -1  && item.stuName.indexOf(studentName.value) != -1
 	})
+	console.log(tableData.value);
+	currentPage.value = 1;
+	pageTotal.value = tableData.value.length;
+	showData.value = tableData.value.slice(0,10);
+};
+const clearOps = () => {
+	handleSearchStudent();
+};
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 };
 // 分页导航
 const handlePageChange = (val: number) => {
-	query.pageIndex = val;
-	getData(grade);
+	console.log(val);
+	showData.value = tableData.value.slice((val-1)*10,(val-1)*10+10);
+	// console.log(stu_box.value?.scrollTop);
+	
+	// window.scrollTo(0,0);
+	// scrollToTop();
 };
 
 // // 删除操作

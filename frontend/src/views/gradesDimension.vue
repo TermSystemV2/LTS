@@ -14,8 +14,10 @@
 				</el-select>
 				<el-button type="primary" :icon="Search" @click="handleSearchTerm(term)">搜索</el-button>
 			</div>
+			<!-- <el-table :data="tableData" border class="table" ref="multipleTable" header-cell-class-name="table-header"
+				:row-style="{height: '800px'}" :header-cell-style="{textAlign: 'center'}" :cell-style="{ textAlign: 'center' }"> -->
 			<el-table :data="tableData" border class="table" ref="multipleTable" header-cell-class-name="table-header"
-				:row-style="{height: '500px'}" :header-cell-style="{textAlign: 'center'}" :cell-style="{ textAlign: 'center' }">
+				:header-cell-style="{textAlign: 'center'}" :cell-style="{ textAlign: 'center' }">
 				<!-- <el-table-column prop="id" label="ID" width="55" align="center"></el-table-column> -->
 				<el-table-column prop="courseName" label="年级" width="120" >
 					<template #default="scope" class="template">

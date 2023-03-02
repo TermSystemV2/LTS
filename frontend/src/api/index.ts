@@ -1,3 +1,4 @@
+import { data } from 'jquery';
 import request from '../utils/request';
 
 export const fetchData = () => {
@@ -121,3 +122,18 @@ export const addUserData = (data:userInfo) => {
         data
     });
 };
+
+export const uploadFile = (data:FormData) => {
+    return request({
+        url: 'proxy/apis/v1/uploadfile',
+        method: 'post',
+        data: data,
+        // headers: {
+        //     'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundarynl6gT1BKdPWIejNq'
+        // }
+        headers: {
+            'Access-Control-Allow-Origin':'*',
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+}
