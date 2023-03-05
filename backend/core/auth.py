@@ -84,3 +84,9 @@ def sign_up_new_user(db, cName: str, password: str):
         ),
     )
     return new_user
+
+async def check_permission():
+    """
+    权限验证
+    
+    """

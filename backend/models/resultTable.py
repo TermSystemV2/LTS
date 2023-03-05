@@ -303,7 +303,7 @@ class StudentInfo(Base):
     term3 = Column(LONGTEXT, nullable=True)
     term4 = Column(LONGTEXT, nullable=True)
     totalWeightedScore = Column(Float, nullable=True)
-    totalWeightedScoreTerm1 = Column(Float, nullable=True)
+    totalWeightedScoreTerm1 = Column(Float, nullable=True) # 每学期加权
     totalWeightedScoreTerm2 = Column(Float, nullable=True)
     totalWeightedScoreTerm3 = Column(Float, nullable=True)
     totalWeightedScoreTerm4 = Column(Float, nullable=True)
@@ -311,8 +311,9 @@ class StudentInfo(Base):
     failedSubjectNames = Column(LONGTEXT, nullable=True)
     failedSubjectNums = Column(Integer, nullable=True)
     sumFailedCredit = Column(Integer, nullable=True)
-    failedSubjectNumsTerm = Column(String(50), nullable=True)
-    totalWeightedScoreTerm = Column(String(50), nullable=True)
+    failedSubjectNumsTerm = Column(String(50), nullable=True) # 每学年挂科数量
+    totalWeightedScoreTerm = Column(String(50), nullable=True) # 每学加权平均分
+    totalFailedCreditTerm = Column(String(50), nullable=True) # 每学年不及格学分
     selfContent = Column(LONGTEXT, nullable=True)
 
 

@@ -47,7 +47,9 @@ async def get_class_table_by_term(queryItem: schemas.ClassQuery, db: Session = D
     redis_key = "class_by_term_table_" + str(term)
     state = await redis_store.exists(redis_key)
     if state == 0:
-        if config.UPDATE_DATA:  # 更新数据模型
+        state_read = db.query(models.ResultReadState).filter(
+        models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
+        if state_read.state:  # 更新数据
             ret = []
             # 找到四个年级
             grade_class_info = await get_each_grade_class_number(db, redis_store)

@@ -35,7 +35,9 @@ async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_ca
     state = await redis_store.exists("studentInfo_"+str(grade))
     print("[debug] state: ",state)
     if state == 0:
-        if config.UPDATE_DATA:
+        state_read = db.query(models.ResultReadState).filter(
+        models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
+        if state_read.state:  # 更新数据
             course_credit_dic = await get_course_credit(db,redis_store,grade)  # 课程:学分
             allFailedStudentInfos = []
             # 从score 中获取所有成绩有不及格情况的同学
@@ -101,6 +103,7 @@ async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_ca
                             failedSubjectNames = str(studentInfoItem['failedSubjectNames']),
                             failedSubjectNums = studentInfoItem['failedSubjectNums'],
                             sumFailedCredit = studentInfoItem['sumFailedCredit'],
+                            totalFailedCreditTerm = str(studentInfoItem["totalFailedCreditTerm"]),
                             failedSubjectNumsTerm = str(studentInfoItem['failedSubjectNumsTerm']),
                             totalWeightedScoreTerm = str(studentInfoItem['totalWeightedScoreTerm']),
                             selfContent = str(studentInfoItem['selfContent'])
@@ -142,6 +145,7 @@ async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_ca
                         "sumFailedCredit" : dbItem.sumFailedCredit,
                         "failedSubjectNumsTerm" : eval(dbItem.failedSubjectNumsTerm),
                         "totalWeightedScoreTerm" : eval(dbItem.totalWeightedScoreTerm),
+                        "totalFailedCreditTerm" : eval(dbItem.totalFailedCreditTerm),
                         "selfContent" : eval(dbItem.selfContent) if dbItem.selfContent != '' else {}
                     }
                 )
@@ -176,7 +180,9 @@ async def queryStudentInfoByNameOrID(request:Request,queryItem:schemas.StudentIn
     query_stuName = queryItem.stuName #request.args.get("stuName")
     course_credit_dic = await get_course_credit(db,redis_store)
     allFailedStudentInfos = []
-    if config.UPDATE_DATA:
+    state_read = db.query(models.ResultReadState).filter(
+    models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
+    if state_read.state:  # 更新数据
         # 从score 中获取所有成绩有不及格情况的同学
         ## 格式为 json
         stuID_json = await get_failedStuID(db,redis_store)
@@ -366,11 +372,13 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
             "totalWeightedScore:totalWeightedScore,
             "totalWeightedScoreTerm1“:totalWeightedScoreTerm1,
             "totalWeightedScoreTerm3":totalWeightedScoreTerm3,
-            "totalWeightedScoreTerm4":totalWeightedScoreTerm4
+            "totalWeightedScoreTerm4":totalWeightedScoreTerm4.
+            "totalFailedCreditTerm":totalFailedCreditTerm
         }
         """
     # print(course_credit_dic)
     term1, term2, term3, term4 = {}, {}, {}, {}
+    totalFailedCreditTerm = [0,0,0,0]
     failedSubjectdict = {}
     failedSubjectdict["stuID"] = stuID
     stuClass = db.query(models.Student).filter(models.Student.stuID == stuID).with_entities(models.Student.stuClass, models.Student.stuName).first()
@@ -385,7 +393,8 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
     # for sc in scoreList:
     #     print(sc)
     # print("="*50)
-    credit1, credit2, credit3, credit4 = 0.0, 0.0, 0.0, 0.0
+    credit1, credit2, credit3, credit4 = 0.0, 0.0, 0.0, 0.0 # 每学年所有课程的学分
+    failedCredit1, failedCredit2, failedCredit3, failedCredit4 = 0.0, 0.0, 0.0, 0.0 # 每学年所有课程的学分
     sumScore1, sumScore2, sumScore3, sumScore4 = 0.0, 0.0, 0.0, 0.0
     failedSubjectNamesScores = {}
     sumFailedCredit = 0.0
@@ -405,6 +414,7 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
             credit1 += (course_credit_dic[sc[0]])
             if sc[1] < 60:
                 failedSubjectNumsTerm1 += 1
+                failedCredit1 += course_credit_dic[sc[0]]
         elif sc[2] == 21 or sc[2] == 22:
             # print("="*20)
             # print(sc)
@@ -418,12 +428,14 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
             credit2 += (course_credit_dic[sc[0]])
             if sc[1] < 60:
                 failedSubjectNumsTerm2 += 1
+                failedCredit2 += course_credit_dic[sc[0]]
         elif sc[2] == 31 or sc[2] == 32:
             term3[sc[0]] = sc[1]
             sumScore3 += (sc[1] * course_credit_dic[sc[0]])
             credit3 += (course_credit_dic[sc[0]])
             if sc[1] < 60:
                 failedSubjectNumsTerm3 += 1
+                failedCredit3 += course_credit_dic[sc[0]]
             # print(sc.courseName,course_credit_dic[sc.courseName])
         elif sc[2] == 41 or sc[2] == 42:
             term4[sc[0]] = sc[1]
@@ -431,12 +443,14 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
             credit4 += (course_credit_dic[sc[0]])
             if sc[1] < 60:
                 failedSubjectNumsTerm4 += 1
+                failedCredit4 += course_credit_dic[sc[0]]
         if sc[1] < 60:
             failedSubjectNamesScores[sc[0]] = sc[1]
             sumFailedCredit += course_credit_dic[sc[0]]
 
     totalScore = (sumScore1 + sumScore2 + sumScore3 + sumScore4)
     totalCredit = (credit1 + credit2 + credit3 + credit4)
+    
     totalWeightedScore, totalWeightedScoreTerm1, totalWeightedScoreTerm2, totalWeightedScoreTerm3, totalWeightedScoreTerm4 = 0, 0, 0, 0, 0
     if totalCredit != 0.0:
         totalWeightedScore = (totalScore) / (totalCredit * 1.0)
@@ -467,6 +481,7 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
                                                   failedSubjectNumsTerm3, failedSubjectNumsTerm4]
     failedSubjectdict["totalWeightedScoreTerm"] = [round(totalWeightedScoreTerm1, 2), round(totalWeightedScoreTerm2, 2),
                                                    round(totalWeightedScoreTerm3, 2), round(totalWeightedScoreTerm4, 2)]
+    failedSubjectdict["totalFailedCreditTerm"] = [failedCredit1,failedCredit2,failedCredit3,failedCredit4]
     # 获取其个人评价
     stuAnalysisInfo = db.query(models.StuAnalysis).filter(models.StuAnalysis.stuID == stuID, models.StuAnalysis.stuType == 3).all()
 

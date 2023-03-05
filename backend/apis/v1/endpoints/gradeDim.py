@@ -30,7 +30,9 @@ async def get_grade_by_term(queryItem: schemas.GradeQuery, db: Session = Depends
     redis_key = "grade_by_term_" + str(term)
     state = await redis_store.exists(redis_key)
     if state == 0:
-        if config.UPDATE_DATA:  # 重新计算数据
+        state_read = db.query(models.ResultReadState).filter(
+        models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
+        if state_read.state:  # 更新数据
             # print("get_grade_by_term term:{}".format(term))
             # 1. 得到一些基本信息（年级人数，班级人数）
             each_grade_class_number = await get_each_grade_class_number(db, redis_store)
