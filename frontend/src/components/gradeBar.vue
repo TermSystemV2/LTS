@@ -63,8 +63,11 @@ onMounted(() => {
                     saveAsImage: { show: true }
                 }
             },
+            grid: {
+                top: 100,
+            },
             legend: {
-                data: ['挂科人数', '挂科率']
+                data: ['挂科人数', '不及格比例']
             },
             xAxis: [
                 {
@@ -97,23 +100,28 @@ onMounted(() => {
                             }
                         }
                     },
-                
                 }
             ],
             yAxis: [
                 {
                     type: 'value',
-                    name: '个数',
+                    name: '挂科人数',
                     minInterval: 1,
                     axisLabel: {
-                        formatter: '{value} 个'
+                        formatter: '{value} 人'
+                    },
+                    nameTextStyle: {
+                        fontSize: '16'
                     }
                 },
                 {
                     type: 'value',
-                    name: '比例',
+                    name: '不及格比例',
                     axisLabel: {
                         formatter: '{value} %'
+                    },
+                    nameTextStyle: {
+                        fontSize: '16'
                     }
                 }
             ],
@@ -124,7 +132,7 @@ onMounted(() => {
                     smooth: false,
                     tooltip: {
                         valueFormatter: function (value: string) {
-                            return value + ' 个';
+                            return value + ' 人';
                         }
                     },
                     data: failedNum,
@@ -132,20 +140,20 @@ onMounted(() => {
                         normal: {
                             label: {
                                 show: true,
-                                position: 'inside',
+                                position: 'insideBottom',
                                 textStyle: {
                                     color: 'black',
                                     fontSize: 12,
                                 },
                                 formatter: function(realData:any) {
-                                    return '个数:'+realData.value
+                                    return realData.value+'人'
                                 }
                             }
                         }
                     }
                 },
                 {
-                    name: '挂科率',
+                    name: '不及格比例',
                     type: 'line',
                     smooth: false,
                     yAxisIndex: 1,
@@ -165,7 +173,7 @@ onMounted(() => {
                                     fontSize: 12,
                                 },
                                 formatter: function(realData:any) {
-                                    return '挂科率:'+realData.value+'%'
+                                    return realData.value+'%'
                                 }
                             }
                         }

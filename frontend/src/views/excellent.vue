@@ -29,8 +29,9 @@ onMounted(() => {
 
 <style scoped>
 .container{
+	box-sizing: border-box;
 	width: 100%;
-	height: 70%;
+	height: 100%;
 }
 .schart-box {
 	display: inline-block;
@@ -51,5 +52,6 @@ onMounted(() => {
 	margin-left: 10px;
 	font-size: 22px;
 	color: #1f2f3d;
+	text-align: center;
 }
 </style>

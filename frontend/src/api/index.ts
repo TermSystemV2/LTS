@@ -56,6 +56,18 @@ export const fetchCoursesData = (term:String) => {
     });
 };
 
+// 通过课程名下载该课程不及格名单-excel表格
+export const downloadCoursesData = (courseName:String) => {
+    return request({
+        url: 'proxy/apis/v1/scores/courses/download/<courseName>',
+        method: 'post',
+        data:{
+            "courseName":courseName
+        },
+        'responseType':"arraybuffer",
+    });
+};
+
 export const fetchGradesData = (term:String) => {
     return request({
         url: 'proxy/apis/v1/scores/grade/<term>',
@@ -135,5 +147,21 @@ export const uploadFile = (data:FormData) => {
             'Access-Control-Allow-Origin':'*',
             'Content-Type': 'multipart/form-data'
         }
+    })
+}
+
+// 修改读取方式
+export const updateState = (data:string) => { // 目前data应写死为'read from origin'
+    return request({
+        url: 'proxy/apis/v1/updateState?name=' + data,
+        method: 'get'
+    })
+}
+
+// 获取数据读取方式 name: state: 1：从原始数据中读取 0：从计算结果中读取
+export const getState = (data:string) => { // 目前data应写死为'read from origin'
+    return request({
+        url: 'proxy/apis/v1/getState?name=' + data,
+        method: 'get'
     })
 }

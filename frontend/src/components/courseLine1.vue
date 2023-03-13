@@ -17,7 +17,7 @@ const courseLineRef = ref<HTMLDivElement>()
 onMounted(() => {
     watchEffect(()=>{
         let data = props.chartData;
-        console.log(data);
+        // console.log(data);
         
         let gradeDistribute = data?.gradeDistribute;
         let grade = []
@@ -155,16 +155,16 @@ onMounted(() => {
             align: app.config.align as BarLabelOption['align'],
             verticalAlign: app.config.verticalAlign as BarLabelOption['verticalAlign'],
             rotate: app.config.rotate as BarLabelOption['rotate'],
-            formatter: '{c}  {name|{a}}',
+            formatter: '{c}人  {name|{a}}',
             fontSize: 16,
             rich: {
                 name: {}
             }
         };
-        console.log(data);
+        // console.log(data);
         
         var infos = props.chartData?.gradeDistribute;
-        console.log(infos);
+        // console.log(infos);
         let legends = [];
         let xDatas = [];
         let tempIdx = 0;
@@ -194,9 +194,9 @@ onMounted(() => {
             }
             seriesData.push(seriesItem);
         }
-        console.log(legends);
-        console.log(xDatas);
-        console.log(seriesData);
+        // console.log(legends);
+        // console.log(xDatas);
+        // console.log(seriesData);
         
         option = {
             tooltip: {
@@ -205,9 +205,13 @@ onMounted(() => {
                 type: 'shadow'
                 }
             },
+            grid: {
+                top: 100,
+            },
             legend: {
                 show: true,
-                data: legends
+                data: legends,
+                left: 'left',
             },
             toolbox: {
                 show: true,
@@ -227,18 +231,38 @@ onMounted(() => {
             },
             xAxis: [
                 {
-                type: 'category',
-                axisTick: { show: false },
-                data: xDatas,
+                    type: 'category',
+                    name: '分数段',
+                    nameTextStyle: {
+                        fontSize: '16'
+                    },
+                    axisTick: { show: false },
+                    data: xDatas,
+                    axisLabel: {
+                        formatter: '{value}分',
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: 'rgb(59,165,217)'
+                        }
+                    }
                 }
             ],
             yAxis: [
                 {
                     type: 'value',
-                    name: '个数',
+                    name: '人数',
                     minInterval: 1,
+                    nameTextStyle: {
+                        fontSize: '16'
+                    },
                     axisLabel: {
-                        formatter: '{value} 个',
+                        formatter: '{value} 人',
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: 'rgb(59,165,217)'
+                        }
                     }
                 }
             ],
@@ -253,5 +277,8 @@ onMounted(() => {
 .chart {
     width: 100%;
     height: 500px;
+}
+.el-button {
+    padding: 0!important;
 }
 </style>

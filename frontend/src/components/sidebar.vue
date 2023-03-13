@@ -119,42 +119,42 @@ const items = [
 		title: '不及格分析',
 		permiss: '2'
 	},
-	{
-		icon: 'Calendar',
-		index: '/table',
-		title: '基础表格',
-		permiss: '2'
-	},
-	{
-		icon: 'DocumentCopy',
-		index: '/tabs',
-		title: 'tab选项卡',
-		permiss: '3'
-	},
-	{
-		icon: 'Setting',
-		index: '/icon',
-		title: '自定义图标',
-		permiss: '10'
-	},
-	{
-		icon: 'PieChart',
-		index: '/charts',
-		title: 'schart图表',
-		permiss: '11'
-	},
-	{
-		icon: 'Warning',
-		index: '/permission',
-		title: '权限管理',
-		permiss: '13'
-	},
-	{
-		icon: 'CoffeeCup',
-		index: '/donate',
-		title: '支持作者',
-		permiss: '14'
-	}
+	// {
+	// 	icon: 'Calendar',
+	// 	index: '/table',
+	// 	title: '基础表格',
+	// 	permiss: '2'
+	// },
+	// {
+	// 	icon: 'DocumentCopy',
+	// 	index: '/tabs',
+	// 	title: 'tab选项卡',
+	// 	permiss: '3'
+	// },
+	// {
+	// 	icon: 'Setting',
+	// 	index: '/icon',
+	// 	title: '自定义图标',
+	// 	permiss: '10'
+	// },
+	// {
+	// 	icon: 'PieChart',
+	// 	index: '/charts',
+	// 	title: 'schart图表',
+	// 	permiss: '11'
+	// },
+	// {
+	// 	icon: 'Warning',
+	// 	index: '/permission',
+	// 	title: '权限管理',
+	// 	permiss: '13'
+	// },
+	// {
+	// 	icon: 'CoffeeCup',
+	// 	index: '/donate',
+	// 	title: '支持作者',
+	// 	permiss: '14'
+	// }
 ];
 
 const route = useRoute();

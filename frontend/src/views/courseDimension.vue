@@ -1,15 +1,24 @@
 <template>
 	<div>
 		<el-drawer
+			class="my_drawer"
 			v-model="table"
-			:title="drawerTitle"
 			direction="rtl"
 			size="50%"
 		>
+			<template #title>
+				<div class="drawer_title">
+					<span>{{drawerTitle}}</span>
+					<el-icon class="my_download" @click="downloadFile">
+						<download />
+					</el-icon>
+				</div>
+			</template>
 			<el-table :data="gridData">
-			<el-table-column property="grade" label="Grade" width="150" />
-			<el-table-column property="class" label="Class" width="200" />
-			<el-table-column property="name" label="Name" />
+				<el-table-column property="order" label="序号" width="150" />
+				<el-table-column property="grade" label="班级" width="150" />
+				<el-table-column property="stuNum" label="学号" width="200" />
+				<el-table-column property="stuName" label="姓名" />
 			</el-table>
 		</el-drawer>
 		<div class="container">
@@ -49,7 +58,7 @@
 					<template #default="scope">
 						{{scope.row.courseName}}
 						<p class="fail_text">（共计{{scope.row.sumFailedNums}}人次）</p>
-						<el-button type="primary" bg @click="openDrawer(scope.row.courseName)">挂科学生详情</el-button>
+						<el-button type="primary" bg @click="openDrawer(scope.row.courseName,scope.row.failStudentsList)">挂科学生详情</el-button>
 					</template>
 				</el-table-column>
 				<el-table-column label="考试通过情况">
@@ -123,10 +132,12 @@
 <script setup lang="ts" name="basetable">
 import { ref, reactive, onMounted } from 'vue';
 import { ElDrawer,ElMessage, ElMessageBox } from 'element-plus';
+import { Download } from '@element-plus/icons';
 import { Delete, Edit, Search, Plus } from '@element-plus/icons-vue';
-import { fetchData, fetchCoursesData } from '../api/index';
+import { fetchData, fetchCoursesData, downloadCoursesData } from '../api/index';
 import CourseBar from "../components/courseBar.vue";
 import CourseLine from '../components/courseLine1.vue';
+import fileDownload from "js-file-download";
 
 interface TableItem {
 	courseName: string;
@@ -139,6 +150,12 @@ interface TableItem {
 interface ListItem {
   value: string
   label: string
+}
+interface GridItem {
+	order: number,
+	grade: string,
+	stuNum: string,
+	stuName: string
 }
 
 const query = reactive({
@@ -156,28 +173,7 @@ let coursesData = ref<ListItem[]>([]);
 
 const table = ref(false)
 const drawerTitle = ref("");
-const gridData = [
-  {
-    grade: '21级',
-    class: '2103班',
-    name: '陈阵阳',
-  },
-  {
-    grade: '22级',
-    class: '2208班',
-    name: '王文婕',
-  },
-  {
-    grade: '22级',
-    class: '2208班',
-    name: '刘夕源',
-  },
-  {
-    grade: '22级',
-    class: '2208班',
-    name: '周佳',
-  },
-]
+const gridData = ref<gridItem[]>([]);//不及格学生表信息
 
 onMounted(() => {
 	getData(term);
@@ -190,6 +186,8 @@ const getData = (term: String) => {
 	// 	console.log(tableData.value);
 	// });
 	fetchCoursesData(term).then(res => {
+		console.log(res);
+		
 		courseName.value = "";
 		tableData.value = [];
 		tableDataCopy.value = res.data.data;
@@ -237,10 +235,40 @@ const chooseCourse = () => { // 选择某个课程
     })
 }
 
-const openDrawer = (val:string) => { // 点击打开抽屉
+const openDrawer = (val:string, failStudentsList:any) => { // 点击打开抽屉
 	table.value = true;
-	console.log(val);
+	console.log(failStudentsList);
+	gridData.value = [];
+	failStudentsList.forEach((el:any,index:number) => {
+		// console.log(el, index);
+		let tempStu:GridItem = {
+			order: index+1,
+			grade: el[0],
+			stuNum: el[1],
+			stuName: el[2],
+		}
+		gridData.value.push(tempStu);
+	})
+	console.log(gridData.value);
 	drawerTitle.value = "《"+val+"》挂科同学详情";
+}
+
+const downloadFile = () => {
+	let courseName = "";
+	courseName = drawerTitle.value.split("《")[1].split("》")[0];
+	console.log(courseName);
+	downloadCoursesData(courseName).then(res => {
+		console.log(res);
+		if (res.status == 200) {
+			fileDownload(res.data, "failed_students_"+courseName+".xlsx");
+			ElMessage.success({
+				message: '文件下载成功！',
+				type: 'success',
+			});
+		} else {
+			ElMessage.error('文件下载失败！');
+		}
+	});
 }
 
 // // 删除操作
@@ -278,6 +306,24 @@ const openDrawer = (val:string) => { // 点击打开抽屉
 </script>
 
 <style scoped>
+.drawer_title {
+	display: flex;
+	align-items: center;
+}
+
+.drawer_title i.el-icon {
+	background: rgb(120,185,236);
+    color: white;
+    font-weight: 700;
+    border-radius: 50%;
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    font-size: 24px;
+	margin-left: 20px;
+}
 .handle-box {
 	display: inline-block;
 	margin-bottom: 20px;

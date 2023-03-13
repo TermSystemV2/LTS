@@ -41,6 +41,9 @@ onMounted(() => {
                 saveAsImage: { show: true }
             }
         },
+        grid: {
+            top: 100,
+        },
         legend: {
             data: ['学年加权分', '学年挂科数量']
         },
@@ -56,17 +59,23 @@ onMounted(() => {
         yAxis: [
             {
                 type: 'value',
-                name: '分数',
+                name: '加权分数',
                 axisLabel: {
                     formatter: '{value} 分'
+                },
+                nameTextStyle: {
+                    fontSize: '16'
                 }
             },
             {
                 type: 'value',
-                name: '个数',
+                name: '挂科数量',
                 minInterval: 1,
                 axisLabel: {
-                    formatter: '{value} 个'
+                    formatter: '{value} 门'
+                },
+                nameTextStyle: {
+                    fontSize: '16'
                 }
             }
         ],
@@ -90,7 +99,7 @@ onMounted(() => {
                                 fontSize: 12,
                             },
                             formatter: function(realData:any) {
-                                return '分数:'+realData.value+'分'
+                                return '加权\n'+realData.value+'分'
                             }
                         }
                     }
@@ -102,7 +111,7 @@ onMounted(() => {
                 yAxisIndex: 1,
                 tooltip: {
                     valueFormatter: function (value: string) {
-                        return value + ' 个';
+                        return value + ' 门';
                     }
                 },
                 data: failedSubjectNumsTerm,
@@ -116,7 +125,7 @@ onMounted(() => {
                                 fontSize: 12,
                             },
                             formatter: function(realData:any) {
-                                return '个数:'+realData.value+'个'
+                                return realData.value+'门'
                             }
                         }
                     }

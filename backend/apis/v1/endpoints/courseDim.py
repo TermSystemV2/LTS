@@ -65,6 +65,7 @@ async def get_coursers_by_term_pass(queryItem: schemas.ClassQuery, db: Session =
         }
     ]
     """
+    tmp_courseNameList = []
     term = int(queryItem.term)
     redis_key = "course_by_term_" + str(term)
     state = await redis_store.exists(redis_key)
@@ -88,7 +89,8 @@ async def get_coursers_by_term_pass(queryItem: schemas.ClassQuery, db: Session =
             courseNameList = [
                 courseName for courseName in courseNameList if courseName not in config.NOT_SHOW_COURSENAME]
             courseNameList = sorted(courseNameList,key=to_pinyin)
-            
+            print("="*50)
+            print(courseNameList)
             for courseName in courseNameList:
                 tmpDict = {
                     "id": "term"+str(term),

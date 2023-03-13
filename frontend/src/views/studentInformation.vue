@@ -60,7 +60,7 @@
 										<span>第一学年个人分析</span>
 									</div>
 								</template>
-								<div class="text item">个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析</div>
+								<div class="text item analysis" @click="openDialog">个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析</div>
 							</el-card>
 							<el-card>
 								<template #header>
@@ -68,7 +68,7 @@
 										<span>第二学年个人分析</span>
 									</div>
 								</template>
-								<div class="text item">个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析</div>
+								<div class="text item analysis" @click="openDialog">个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析</div>
 							</el-card>
 							<el-card>
 								<template #header>
@@ -76,7 +76,7 @@
 										<span>第三学年个人分析</span>
 									</div>
 								</template>
-								<div class="text item">个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析</div>
+								<div class="text item analysis" @click="openDialog">个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析</div>
 							</el-card>
 							<el-card>
 								<template #header>
@@ -84,7 +84,7 @@
 										<span>第四学年个人分析</span>
 									</div>
 								</template>
-								<div class="text item">个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析</div>
+								<div class="text item analysis" @click="openDialog">个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析个人分析</div>
 							</el-card>
 						</el-table-column>
 					</el-table>
@@ -96,6 +96,17 @@
 				<el-pagination background layout="total, prev, pager, next" v-model:current-page="currentPage"
 				:total="pageTotal" :page-size="10" @current-change="handlePageChange"></el-pagination>
 			</div>
+
+			<el-dialog v-model="dialogVisible" title="个人分析" width="30%" draggable>
+				<span>这里是个人分析的具体内容！</span>
+				<template #footer>
+				<span class="dialog-footer">
+					<el-button type="primary" @click="dialogVisible = false">
+					关闭
+					</el-button>
+				</span>
+				</template>
+			</el-dialog>
 		</div>
 
 		<!-- 编辑弹出框 -->
@@ -170,6 +181,7 @@ let coursesData = ref<ListItem[]>([]);
 let pageTotal = ref(0)
 const loading = ref(true)
 const currentPage = ref(0)
+const dialogVisible = ref(false)
 
 // 获取表格数据
 const getData = (grade: String) => {
@@ -179,6 +191,8 @@ const getData = (grade: String) => {
 	// 	console.log(tableData.value);
 	// });
 	fetchStudntInfoData(grade).then(res => {
+		console.log(res);
+		
 		studentID.value = "";
 		studentName.value = "";
 		// console.log(res);
@@ -231,6 +245,10 @@ const handlePageChange = (val: number) => {
 	// window.scrollTo(0,0);
 	// scrollToTop();
 };
+
+const openDialog = () => {
+	dialogVisible.value = true;
+}
 
 // // 删除操作
 // const handleDelete = (index: number) => {
@@ -319,4 +337,7 @@ const handlePageChange = (val: number) => {
 	padding: 8px 0;
 }
 
+.analysis {
+	cursor: pointer;
+}
 </style>

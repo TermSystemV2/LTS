@@ -55,9 +55,12 @@ onMounted(() => {
                 },
                 left: 'right'
             },
+            grid: {
+                top: 100,
+            },
             legend: {
-                data: ['挂科人数', '通过率'],
-                left: 'center'
+                data: ['挂科人数', '不及格率比例'],
+                left: 'left',
             },
             xAxis: [
                 {
@@ -71,15 +74,21 @@ onMounted(() => {
             yAxis: [
                 {
                     type: 'value',
-                    name: '个数',
+                    name: '人数',
                     minInterval: 1,
+                    nameTextStyle: {
+                        fontSize: '16'
+                    },
                     axisLabel: {
-                        formatter: '{value} 个'
+                        formatter: '{value} 人'
                     }
                 },
                 {
                     type: 'value',
-                    name: '比例',
+                    name: '不及格率比例',
+                    nameTextStyle: {
+                        fontSize: '16'
+                    },
                     axisLabel: {
                         formatter: '{value} %'
                     }
@@ -100,20 +109,20 @@ onMounted(() => {
                         normal: {
                             label: {
                                 show: true,
-                                position: 'inside',
+                                position: 'insideBottom',
                                 textStyle: {
                                     color: 'black',
                                     fontSize: 12,
                                 },
                                 formatter: function(realData:any) {
-                                    return '个数:'+realData.value
+                                    return realData.value+'人'
                                 }
                             }
                         }
                     }
                 },
                 {
-                    name: '通过率',
+                    name: '不及格率比例',
                     type: 'line',
                     smooth: false,
                     yAxisIndex: 1,
@@ -133,7 +142,7 @@ onMounted(() => {
                                     fontSize: 12,
                                 },
                                 formatter: function(realData:any) {
-                                    return '通过率:'+realData.value+'%'
+                                    return realData.value+'%'
                                 }
                             }
                         }

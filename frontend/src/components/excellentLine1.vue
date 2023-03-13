@@ -161,7 +161,7 @@ onMounted(() => {
             align: app.config.align as BarLabelOption['align'],
             verticalAlign: app.config.verticalAlign as BarLabelOption['verticalAlign'],
             rotate: app.config.rotate as BarLabelOption['rotate'],
-            formatter: '{c}  {name|{a}}',
+            formatter: '{c}%  {name|{a}}',
             fontSize: 16,
             rich: {
                 name: {}
@@ -220,6 +220,9 @@ onMounted(() => {
                 type: 'shadow'
                 }
             },
+            grid: {
+                top: 100,
+            },
             legend: {
                 show: true,
                 data: legends,
@@ -243,16 +246,35 @@ onMounted(() => {
             },
             xAxis: [
                 {
-                type: 'category',
-                axisTick: { show: false },
-                data: xDatas,
-                }
+                    type: 'category',
+                    name: '年级',
+                    nameTextStyle: {
+                        fontSize: '16'
+                    },
+                    axisTick: { show: false },
+                    data: xDatas,
+                    axisLine: {
+                        lineStyle: {
+                            color: 'rgb(59,165,217)'
+                        }
+                    }
+                },
             ],
             yAxis: [
                 {
                     type: 'value',
+                    name: '优良学风班比例',
+                    min: 30,
+                    nameTextStyle: {
+                        fontSize: '16'
+                    },
                     axisLabel: {
                         formatter: '{value} %',
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: 'rgb(59,165,217)'
+                        }
                     }
                 }
             ],

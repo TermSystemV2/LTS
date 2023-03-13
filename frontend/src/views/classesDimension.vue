@@ -124,6 +124,8 @@ const getData = (term: String) => {
 	// 	console.log(tableData.value);
 	// });
 	fetchClassesData(term).then(res => {
+		console.log(res);
+		
 		tableData.value = res.data.data;
 		console.log(tableData.value);
 	});

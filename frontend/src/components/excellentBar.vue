@@ -44,8 +44,12 @@ onMounted(() => {
                     saveAsImage: { show: true }
                 }
             },
+            grid: {
+                top: 100,
+            },
             legend: {
-                data: ['个数', '比例']
+                data: ['个数', '比例'],
+                left: 'left',
             },
             xAxis: [
                 {
@@ -63,13 +67,19 @@ onMounted(() => {
                     minInterval: 1,
                     axisLabel: {
                         formatter: '{value} 个'
+                    },
+                    nameTextStyle: {
+                        fontSize: '16'
                     }
                 },
                 {
                     type: 'value',
-                    name: '比例',
+                    name: '优良学风班比例',
                     axisLabel: {
                         formatter: '{value} %'
+                    },
+                    nameTextStyle: {
+                        fontSize: '16'
                     }
                 }
             ],
@@ -88,13 +98,13 @@ onMounted(() => {
                         normal: {
                             label: {
                                 show: true,
-                                position: 'inside',
+                                position: 'insideBottom',
                                 textStyle: {
                                     color: 'black',
                                     fontSize: 12,
                                 },
                                 formatter: function(realData:any) {
-                                    return '个数:'+realData.value
+                                    return realData.value+'个班'
                                 }
                             }
                         }
@@ -121,7 +131,7 @@ onMounted(() => {
                                     fontSize: 12,
                                 },
                                 formatter: function(realData:any) {
-                                    return '比例:'+realData.value+'%'
+                                    return realData.value+'%'
                                 }
                             }
                         }

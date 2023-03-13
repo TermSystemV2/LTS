@@ -125,6 +125,8 @@ const getData = (term: String) => {
 	// 	console.log(tableData.value);
 	// });
 	fetchGradesData(term).then(res => {
+		console.log(res);
+		
 		tableData.value = res.data.data;
 		console.log(tableData.value);
 	});

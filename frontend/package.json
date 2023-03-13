@@ -8,10 +8,12 @@
 		"serve": "vite preview"
 	},
 	"dependencies": {
+		"@element-plus/icons": "^0.0.11",
 		"@element-plus/icons-vue": "^2.0.9",
 		"axios": "^0.27.2",
 		"echarts": "^5.3.3",
 		"element-plus": "^2.2.14",
+		"js-file-download": "^0.4.12",
 		"md-editor-v3": "^2.2.1",
 		"pinia": "^2.0.20",
 		"vue": "^3.2.37",
