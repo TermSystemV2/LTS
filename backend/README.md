@@ -8,6 +8,7 @@
 
 ```python
 # 在根目录下面 /backbone
+conda activate fastapi_env
 python main.py
 ```
 
