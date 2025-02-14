@@ -2,7 +2,11 @@
 	<div>
 		<div class="container">
 			<div class="handle-box">
-				<el-select v-model="term" placeholder="请选择学期" class="handle-select mr10" @change="$forceUpdate()">
+				<el-select
+					v-model="term"
+					placeholder="请选择学期"
+					class="handle-select mr10"
+					@change="$forceUpdate()">
 					<el-option key="11" label="第一学年·第一学期" value="11"></el-option>
 					<el-option key="12" label="第一学年·第二学期" value="12"></el-option>
 					<el-option key="21" label="第二学年·第一学期" value="21"></el-option>
@@ -14,15 +18,34 @@
 				</el-select>
 			</div>
 			<div class="handle-box">
-				<el-select v-model="className" placeholder="请选择班级" class="handle-select mr10" @change="$forceUpdate()">
-					<el-option v-for="cl in classesData" :key="cl.value" :value="cl.label">
+				<el-select
+					v-model="className"
+					placeholder="请选择班级"
+					class="handle-select mr10"
+					@change="$forceUpdate()">
+					<el-option
+						v-for="cl in classesData"
+						:key="cl.value"
+						:value="cl.label">
 					</el-option>
 				</el-select>
-				<el-button type="primary" :icon="Search" @click="handleSearchAnalysis(term,className)">搜索</el-button>
+				<el-button
+					type="primary"
+					:icon="Search"
+					@click="handleSearchAnalysis(term, className)"
+					>搜索</el-button
+				>
 				<!-- <el-button type="primary" :icon="Plus">新增</el-button> -->
 			</div>
-			<el-table :data="tableTransData" border class="table" ref="multipleTable" header-cell-class-name="table-header"
-				:row-style="{height: '100px'}" :header-cell-style="{textAlign: 'center'}" :cell-style="{ textAlign: 'center' }" :span-method="objectSpanMethod">
+			<el-table
+				:data="tableTransData"
+				border
+				class="table"
+				ref="multipleTable"
+				:row-style="{ height: '100px' }"
+				:header-cell-style="{ textAlign: 'center' }"
+				:cell-style="{ textAlign: 'center' }"
+				:span-method="objectSpanMethod">
 				<!-- <el-table-column prop="id" label="ID" width="55" align="center"></el-table-column> -->
 				<el-table-column prop="stuName" label="姓名" width="120">
 					<!-- <template #default="scope" class="template">
@@ -32,9 +55,9 @@
 				</el-table-column>
 				<el-table-column prop="failSubjectName" label="挂科科目" width="120">
 				</el-table-column>
-				<el-table-column  prop="analysisPerson" label="分析人" width="120">
+				<el-table-column prop="analysisPerson" label="分析人" width="120">
 				</el-table-column>
-				<el-table-column  prop="content" label="分析内容">
+				<el-table-column prop="content" label="分析内容">
 					<!-- <template #default="scope" class="template">
 						<CourseLine :chartData="scope.row" />
 					</template> -->
@@ -75,8 +98,13 @@
 				</el-table-column> -->
 			</el-table>
 			<div class="pagination">
-				<el-pagination background layout="total, prev, pager, next" :current-page="query.pageIndex"
-					:page-size="query.pageSize" :total="pageTotal" @current-change="handlePageChange"></el-pagination>
+				<el-pagination
+					background
+					layout="total, prev, pager, next"
+					:current-page="query.pageIndex"
+					:page-size="query.pageSize"
+					:total="pageTotal"
+					@current-change="handlePageChange"></el-pagination>
 			</div>
 		</div>
 
@@ -101,11 +129,11 @@
 </template>
 
 <script setup lang="ts" name="basetable">
-import { ref, reactive } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Delete, Edit, Search, Plus } from '@element-plus/icons-vue';
-import { fetchStudentClasssesData, fetchAnalysisData } from '../api/index';
-import type { TableColumnCtx } from 'element-plus/es/components/table/src/table-column/defaults'
+import { ref, reactive } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { Delete, Edit, Search, Plus } from "@element-plus/icons-vue";
+import { fetchStudentClassData, fetchAnalysisData } from "../api/index";
+import type { TableColumnCtx } from "element-plus/es/components/table/src/table-column/defaults";
 
 interface ClassItem {
 	cls_id: number;
@@ -130,25 +158,25 @@ interface TableTransItem {
 	content: string;
 }
 interface ListItem {
-  value: number
-  label: string
+	value: number;
+	label: string;
 }
 
 interface SpanMethodProps {
-	row: TableItem
-	column: TableColumnCtx<TableItem>
-	rowIndex: number
-	columnIndex: number
+	row: TableItem;
+	column: TableColumnCtx<TableItem>;
+	rowIndex: number;
+	columnIndex: number;
 }
 
 const query = reactive({
-	address: '',
-	name: '',
+	address: "",
+	name: "",
 	pageIndex: 1,
-	pageSize: 10
+	pageSize: 10,
 });
-let term = '11'
-let className = ''
+let term = "11";
+let className = "";
 const classData = ref<ClassItem[]>([]);
 const tableData = ref<TableItem[]>([]);
 const tableTransData = ref<TableTransItem[]>([]);
@@ -161,15 +189,15 @@ const getData = () => {
 	// 	pageTotal.value = res.data.pageTotal || 50;
 	// 	console.log(tableData.value);
 	// });
-	fetchStudentClasssesData().then(res => {
+	fetchStudentClassData().then((res) => {
 		classData.value = res.data.data;
 		console.log(classData.value);
 		classesData.value = [];
-		for(var key in classData.value){
+		for (var key in classData.value) {
 			classesData.value.push({
 				value: classData.value[key].cls_id,
-				label: classData.value[key].className
-			})
+				label: classData.value[key].className,
+			});
 		}
 		console.log(classesData);
 	});
@@ -177,32 +205,32 @@ const getData = () => {
 getData();
 
 // 查询操作
-const handleSearchAnalysis = (term: String,classesName: String) => {
-	console.log('term:' + term);
-	console.log('class:' + classesName);
-	fetchAnalysisData(term,classesName).then(res => {
+const handleSearchAnalysis = (term: String, classesName: String) => {
+	console.log("term:" + term);
+	console.log("class:" + classesName);
+	fetchAnalysisData(term, classesName).then((res) => {
 		tableData.value = res.data.data;
 		console.log(tableData.value);
-		tableTransData.value = []
-		for(var key in tableData.value){
+		tableTransData.value = [];
+		for (var key in tableData.value) {
 			tableTransData.value.push({
 				stuName: tableData.value[key].stuName,
 				failSubjectName: tableData.value[key].failSubjectName,
-				analysisPerson: '本人分析',
-				content: tableData.value[key].content1
+				analysisPerson: "本人分析",
+				content: tableData.value[key].content1,
 			});
 			tableTransData.value.push({
 				stuName: tableData.value[key].stuName,
 				failSubjectName: tableData.value[key].failSubjectName,
-				analysisPerson: '班长分析',
-				content: tableData.value[key].content2
+				analysisPerson: "班长分析",
+				content: tableData.value[key].content2,
 			});
 			tableTransData.value.push({
 				stuName: tableData.value[key].stuName,
 				failSubjectName: tableData.value[key].failSubjectName,
-				analysisPerson: '学委分析',
-				content: tableData.value[key].content3
-			})
+				analysisPerson: "学委分析",
+				content: tableData.value[key].content3,
+			});
 		}
 		console.log(tableTransData.value);
 	});
@@ -213,25 +241,25 @@ const handlePageChange = (val: number) => {
 	getData();
 };
 const objectSpanMethod = ({
-  row,
-  column,
-  rowIndex,
-  columnIndex,
+	row,
+	column,
+	rowIndex,
+	columnIndex,
 }: SpanMethodProps) => {
-  if (columnIndex === 0 || columnIndex === 1) {
-    if (rowIndex % 3 === 0) {
-      return {
-        rowspan: 3,
-        colspan: 1,
-      }
-    } else {
-      return {
-        rowspan: 0,
-        colspan: 0,
-      }
-    }
-  }
-}
+	if (columnIndex === 0 || columnIndex === 1) {
+		if (rowIndex % 3 === 0) {
+			return {
+				rowspan: 3,
+				colspan: 1,
+			};
+		} else {
+			return {
+				rowspan: 0,
+				colspan: 0,
+			};
+		}
+	}
+};
 // // 删除操作
 // const handleDelete = (index: number) => {
 // 	// 二次确认删除

@@ -46,7 +46,7 @@ onMounted(() => {
                 top: 100,
             },
             legend: {
-                data: ['通过人数', '通过率比例']
+                data: ['挂科人数', '不及格率比例']
             },
             xAxis: [
                 {
@@ -54,13 +54,17 @@ onMounted(() => {
                     data: classNameList,
                     axisPointer: {
                         type: 'shadow'
+                    },
+                    axisLabel: {
+                        show: true,
+                        interval: 0
                     }
                 }
             ],
             yAxis: [
                 {
                     type: 'value',
-                    name: '通过人数',
+                    name: '挂科人数',
                     minInterval: 1,
                     nameTextStyle: {
                         fontSize: '16'
@@ -71,7 +75,7 @@ onMounted(() => {
                 },
                 {
                     type: 'value',
-                    name: '通过率比例',
+                    name: '不及格率比例',
                     nameTextStyle: {
                         fontSize: '16'
                     },
@@ -82,9 +86,10 @@ onMounted(() => {
             ],
             series: [
                 {
-                    name: '通过人数',
+                    name: '挂科人数',
                     type: 'bar',
                     smooth: false,
+                    barWidth: 30,
                     tooltip: {
                         valueFormatter: function (value: string) {
                             return value + ' 人';
@@ -94,7 +99,7 @@ onMounted(() => {
                     itemStyle: {
                         normal: {
                             label: {
-                                show: true,
+                                show: function (RealData: any) { if (RealData.value == 0) return false; return true; },
                                 position: 'insideBottom',
                                 textStyle: {
                                     color: 'black',
@@ -103,12 +108,12 @@ onMounted(() => {
                                 formatter: function(realData:any) {
                                     return realData.value+'人'
                                 }
-                            }
+                            },
                         }
                     }
                 },
                 {
-                    name: '通过率比例',
+                    name: '不及格率比例',
                     type: 'line',
                     smooth: false,
                     yAxisIndex: 1,
@@ -137,7 +142,8 @@ onMounted(() => {
             ]
         };
         // 绘制图表
-        myChart.setOption(option);
+        option && myChart.setOption(option);
+        myChart.resize()
         window.addEventListener('resize', () => {
             myChart.resize()
         })

@@ -25,11 +25,12 @@
 						</template>
 					</el-sub-menu>
 				</template>
-				<template v-else>
+				<template v-else-if="item.permiss!='3' || is_superuser == true">
 					<el-menu-item :index="item.index" :key="item.index" v-permiss="item.permiss">
 						<el-icon>
 							<component :is="item.icon"></component>
 						</el-icon>
+						<!-- <i class="el-icon-lx-edit"></i> -->
 						<template #title>{{ item.title }}</template>
 					</el-menu-item>
 				</template>
@@ -42,18 +43,19 @@
 import { computed } from 'vue';
 import { useSidebarStore } from '../store/sidebar';
 import { useRoute } from 'vue-router';
+import { TurnOff } from '@element-plus/icons-vue';
 
 const items = [
 	{
 		icon: 'Edit',
 		index: '3',
 		title: '账号管理',
-		permiss: '4',
+		permiss: '20',
 		subs: [
 			{
 				index: '/usersManagement',
 				title: '用户管理',
-				permiss: '5'
+				permiss: '6'
 			},
 			{
 				index: '/passwordModify',
@@ -61,9 +63,13 @@ const items = [
 				permiss: '6'
 			}
 		]
-	},
-	{
-		icon: 'Odometer',
+	},{
+		icon: 'HomeFilled',
+		index: '/dashboard',
+		title: '系统首页',
+		permiss: '1'
+	},{
+		icon: 'Menu',
 		index: '/dashboard',
 		title: '课程考试情况',
 		permiss: '1',
@@ -71,25 +77,29 @@ const items = [
 			{
 				index: '/excellent',
 				title: '优良学风班',
-				permiss: '5'
-			}, {
+				permiss: '1'
+			},{
 				index: '/courseDimension',
 				title: '课程维度',
-				permiss: '2'
+				permiss: '1'
 			}, {
 				index: '/gradesDimension',
 				title: '年级维度',
-				permiss: '2'
+				permiss: '1'
 			}, {
 				index: '/classesDimension',
 				title: '班级维度',
-				permiss: '2'
+				permiss: '1'
+			},{
+				index: '/majorDimension',
+				title: '专业维度',
+				permiss: '1'
 			},
 			{
-				index: '/filesUpload',
-				title: '文件上传',
-				permiss: '6'
-			}
+				index: '/scoreDimension',
+				title: '分数维度',
+				permiss: '1'
+			},
 			// {
 			// 	index: '4',
 			// 	title: '三级菜单',
@@ -108,17 +118,28 @@ const items = [
 			// 	]
 			// }
 		]
-	}, {
-		icon: 'Calendar',
+	},{
+		icon: 'Notebook',
 		index: '/studentInformation',
 		title: '学生信息',
-		permiss: '2'
+		permiss: '1'
+	},{
+		icon: 'Memo',
+		index: '/studentInformationS',
+		title: '学生信息(精简)',
+		permiss: '1'
 	}, {
-		icon: 'Calendar',
+		icon: 'DataAnalysis',
 		index: '/failureAnalysis',
 		title: '不及格分析',
-		permiss: '2'
+		permiss: '1'
 	},
+	{
+		icon: 'UploadFilled',
+		index: '/filesUpload',
+		title: '文件上传',
+		permiss: '4'
+	}
 	// {
 	// 	icon: 'Calendar',
 	// 	index: '/table',
@@ -156,6 +177,7 @@ const items = [
 	// 	permiss: '14'
 	// }
 ];
+const is_superuser = localStorage.getItem('is_superuser') === true ? true : false
 
 const route = useRoute();
 const onRoutes = computed(() => {

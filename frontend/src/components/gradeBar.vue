@@ -130,6 +130,7 @@ onMounted(() => {
                     name: '挂科人数',
                     type: 'bar',
                     smooth: false,
+                    barWidth: 30,
                     tooltip: {
                         valueFormatter: function (value: string) {
                             return value + ' 人';
@@ -182,7 +183,7 @@ onMounted(() => {
             ]
         };
         // 绘制图表
-        myChart.setOption(option);
+        option && myChart.setOption(option);
         window.addEventListener('resize', () => {
             myChart.resize()
         })
@@ -192,6 +193,6 @@ onMounted(() => {
 <style scoped>
 .chart {
     width: 100%;
-    height: 600px;
+    height: 500px;
 }
 </style>

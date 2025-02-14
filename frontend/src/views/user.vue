@@ -9,18 +9,18 @@
 						</div>
 					</template>
 					<div class="info">
-						<div class="info-image" @click="showDialog">
+						<div class="info-image"  ><!--@click="showDialog"-->
 							<el-avatar :size="100" :src="avatarImg" />
-							<span class="info-edit">
+							<span class="info-edit" style="display: none;">
 								<i class="el-icon-lx-camerafill"></i>
 							</span>
 						</div>
 						<div class="info-name">{{ name }}</div>
-						<div class="info-desc">不可能！我的代码怎么可能会有bug！</div>
+						<div class="info-desc"></div>
 					</div>
 				</el-card>
 			</el-col>
-			<el-col :span="12">
+			<el-col :span="12" style="display: none;">
 				<el-card shadow="hover">
 					<template #header>
 						<div class="clearfix">
@@ -35,7 +35,7 @@
 						<el-form-item label="新密码：">
 							<el-input type="password" v-model="form.new"></el-input>
 						</el-form-item>
-						<el-form-item label="个人简介：">
+						<el-form-item label="个人简介：" style="display: none;">
 							<el-input v-model="form.desc"></el-input>
 						</el-form-item>
 						<el-form-item>
@@ -78,7 +78,7 @@ const name = localStorage.getItem('ms_username');
 const form = reactive({
 	old: '',
 	new: '',
-	desc: '不可能！我的代码怎么可能会有bug！'
+	desc: ''
 });
 const onSubmit = () => {};
 

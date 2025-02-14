@@ -4,25 +4,14 @@ from pypinyin import pinyin,Style
 from itertools import chain
 
 
-def create_form(excel_file_name,form_header):
+def create_form(excel_file_name,data,form_header):
     """创建带表头的 dataFrame
     Args:
         excel_file_name (_type_): _description_
     """
-    df = pd.DataFrame(columns=form_header)
+    df = pd.DataFrame(data=data, columns=form_header)
     df.to_excel(excel_file_name,index=False)
 
-def add_info_to_form(excel_file_name,data):
-    """将信息写入到excel
-    Args:
-        excel_file_name (_type_): _description_
-        data (_type_): _description_
-    """
-    df = pd.read_excel(excel_file_name)
-    row_index = len(df) + 1
-    df.loc[row_index] = data
-    df.to_excel(excel_file_name,index=False)
-    
 def to_pinyin(s):
     """
     转拼音

@@ -9,7 +9,7 @@
 		</div>
 		<div class="schart-box">
 			<div class="content-title">各年级优良学风班比例</div>
-			<ExcellentLine />
+			<ExcellentLine1 />
 		</div>
 	</div>
 </template>
@@ -17,7 +17,7 @@
 <script setup lang="ts" name="basecharts">
 import { onMounted } from "vue-demi";
 import ExcellentBar from "../components/excellentBar.vue";
-import ExcellentLine from "../components/excellentLine1.vue";
+import ExcellentLine1 from "../components/excellentLine1.vue";
 import { useTagsStore } from '../store/tags';
 
 const tags = useTagsStore();

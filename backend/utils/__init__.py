@@ -1,1 +1,1 @@
-from .common import create_form,add_info_to_form,to_pinyin
+from .common import create_form,to_pinyin

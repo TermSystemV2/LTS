@@ -62,9 +62,11 @@ def authenticate_user_cID(db, cID: str, password: str):
     return user
 
 def authenticate_user(db, cName: str, password: str):
+    print("authenticate_user:{}".format(cName))
     user = get_user_by_cName(db, cName)
     if not user:
         return False
+    print("user:{}".format(user.cID))
     if not security.verify_password(password, user.hashed_password):
         return False
     return user

@@ -15,146 +15,17 @@ from schemas.basic import Response200, Response400
 from database.redis import course_cache
 from core.config import config
 from .commonCourse import get_each_grade_class_number
+import re
 
 classDim_router = APIRouter()
 
 
-@classDim_router.post("/scores/class/table/<term>")
-async def get_class_table_by_term(queryItem: schemas.ClassQuery, db: Session = Depends(get_db),
-                                  redis_store: Redis = Depends(course_cache)):
-    """
-    {
-        [
-            {
-            "className": "CS2006",
-            "failedNum": 1, # 挂科人数
-            "failedNum2": 1, # 挂科人次
-            "failedRange": "100.00", # 挂科幅度
-            "failedRate": "3.00",
-            "failedThreeNum": 0,
-            "grade": "20",
-            "id": "term11_CS2006",
-            "totalNum": 30
-          }
-        ]
-    }
-    :param queryItem:
-    :param db:
-    :param redis_store:
-    :return:
-    """
-    term = int(queryItem.term)
-    redis_key = "class_by_term_table_" + str(term)
-    state = await redis_store.exists(redis_key)
-    if state == 0:
-        state_read = db.query(models.ResultReadState).filter(
-        models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
-        if state_read.state:  # 更新数据
-            ret = []
-            # 找到四个年级
-            grade_class_info = await get_each_grade_class_number(db, redis_store)
-            for grade in grade_class_info["class_nums_student"].keys():
-                for className in grade_class_info["class_nums_student"][grade]:
-                    tmpDict = {
-                        "term": str(term),
-                        "className": className,
-                        "totalNum": grade_class_info["class_nums_student"][grade][className],
-                        "failedNum": 0,  # 挂科人数
-                        "failedThreeNum": 0,  # 3门及以上的人
-                        "failedNum2": 0,  # 挂科人次 重复计算
-                        "failedRate": 0,  # 挂科率
-                        "failedRange": 0  # 挂科幅度
-                    }
-                    res_class = db.query(models.Scores).join(models.Student, models.Scores.stuID == models.Student.stuID,
-                                                             isouter=True). \
-                        filter(
-                        and_(models.Student.stuClass == className, models.Scores.term == term, models.Scores.score < 60)). \
-                        with_entities(models.Scores.stuID, models.Scores.courseName, models.Scores.score,
-                                      models.Student.stuClass).all()
-                    print("res_class" + " =" * 50)
-                    tmpDict["failedNum2"] = len(res_class)  # 人次
-                    failedNum = []  # 人数
-                    failedThreeNum = {}
-                    for row in res_class:
-                        if row[0] not in failedNum:
-                            failedNum.append(row[0])
-                        if row[0] not in failedThreeNum:
-                            failedThreeNum[row[0]] = 1
-                        else:
-                            failedThreeNum[row[0]] += 1
-                    for stuID in failedThreeNum.keys():
-                        if failedThreeNum[stuID] >= 3:
-                            tmpDict["failedThreeNum"] += 1
-
-                    tmpDict["failedNum"] = len(failedNum)
-                    if tmpDict["totalNum"] != 0:
-                        tmpDict["failedRate"] = round(
-                            tmpDict["failedNum"] / (tmpDict["totalNum"] * 1.0), 4) * 100
-                        tmpDict["failedRate"] = float(
-                            "{:.2f}".format(tmpDict["failedRate"]))
-
-                    if tmpDict["failedNum"] != 0:
-                        tmpDict["failedRange"] = round(
-                            tmpDict["failedNum2"] / (tmpDict["failedNum"] * 1.0), 4) * 100
-                        tmpDict["failedRange"] = float(
-                            "{:.2f}".format(tmpDict["failedRange"]))
-                    ret.append(tmpDict)
-            if len(ret) != 0:
-                # 将计算好的数据写入数据库
-                for classItem in ret:
-                    classItemQuery = db.query(models.ClassByTermTable).filter(and_(
-                            models.ClassByTermTable.term == classItem['term'], models.ClassByTermTable.className == str(classItem['className'])
-                    )).first()
-                    # print("="*50)
-                    # print(classItemQuery)
-                    if classItemQuery:
-                        continue
-                    print("将 班级维度的表数据计算 结果存入数据库 ...")
-                    classItemInsert = models.ClassByTermTable(
-                        term = classItem['term'],
-                        className = classItem['className'],
-                        totalNum = classItem['totalNum'],
-                        failedNum = classItem['failedNum'],
-                        failedThreeNum = classItem['failedThreeNum'],
-                        failedNum2 = classItem['failedNum2'],
-                        failedRate = classItem['failedRate'],
-                        failedRange = classItem['failedRange']
-                    )
-                    db.add(classItemInsert)
-                    db.commit()
-                    db.refresh(classItemInsert)
-                
-            else:
-                return Response400(msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空")
-        else:
-            # 直接读取计算好的数据
-            retDb = db.query(models.ClassByTermTable).filter(models.ClassByTermTable.term == str(term)).all()
-            ret = []
-            # print("="*50)
-            for dbItem in retDb:
-                ret.append(
-                    {
-                        "term": dbItem.term,
-                        "className": dbItem.className,
-                        "totalNum" : dbItem.totalNum,
-                        "failedNum" : dbItem.failedNum,
-                        "failedThreeNum" : dbItem.failedThreeNum,
-                        "failedNum2" : dbItem.failedNum2,
-                        "failedRate" : dbItem.failedRate,
-                        "failedRange" : dbItem.failedRange
-                    }
-                )
-        # 写入 redis
-        await redis_store.setex(redis_key, config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,json.dumps(ret, ensure_ascii=False))
-    else:
-        ret = json.loads(await redis_store.get(redis_key))
-
-    return Response200(data=ret)
-
-
-@classDim_router.post("/scores/class/chart/<term>")
-async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = Depends(get_db),
-                                  redis_store: Redis = Depends(course_cache)):
+@classDim_router.post("/scores/class/chart")
+async def get_class_chart_by_term(
+    queryItem: schemas.ClassQuery,
+    db: Session = Depends(get_db),
+    redis_store: Redis = Depends(course_cache),
+):
     """
     班级维度图标
 
@@ -183,16 +54,16 @@ async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = D
          }
     ]
     """
-    print(queryItem.term)
     term = int(queryItem.term)
-    print("term:{}".format(term))
-    redis_key = "class_by_term_chart_" + str(term)
-    state = await redis_store.exists(redis_key)
-    if state == 0:
-        # 获取状态
-        state_read = db.query(models.ResultReadState).filter(
-        models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
-        if state_read.state:  # 更新数据
+    key = "class_by_term_chart_" + str(term)
+    sqlState = (
+        db.query(models.ResultReadState)
+        .filter(models.ResultReadState.key == key)
+        .first()
+    )
+    redisState = await redis_store.exists(key)
+    if (not sqlState) or redisState == 0:
+        if not sqlState:  # 更新数据
             ret = []
             # 找到四个年级
             grade_class_info = await get_each_grade_class_number(db, redis_store)
@@ -200,87 +71,222 @@ async def get_class_chart_by_term(queryItem: schemas.ClassQuery, db: Session = D
             for grade in grade_class_info["grade"].keys():
                 tmpDict = {
                     "classNameList": [],
-                    "failedNum": [],
-                    "failedRate": [],  # 挂科人数
+                    "failedNum": [],  # 挂科人数
+                    "failedRate": [],
+                    "totalNum": [],  # 各班总人数
                     "grade": str(grade),
-                    # "term": "term_" + str(term) + "_" + str(grade)
-                    "term": str(term)
+                    "term": str(term),
+                    "type": 1,
                 }
+                tmpDictMajor = {
+                    "classNameList": [],
+                    "failedNum": [],  # 挂科人数
+                    "failedRate": [],
+                    "totalNum": [],  # 各班总人数
+                    "grade": str(grade),
+                    "term": str(term),
+                    "type": 0,
+                }
+                count = 0
+                lastMajorIndex = 0
                 for className in grade_class_info["class_nums_student"][grade]:
-                    res_class = db.query(models.Scores).join(models.Student, models.Scores.stuID == models.Student.stuID,
-                                                             isouter=True). \
-                        filter(
-                        and_(models.Student.stuClass == className, models.Scores.term == term, models.Scores.score < 60)). \
-                        with_entities(models.Scores.stuID, models.Scores.courseName, models.Scores.score,
-                                      models.Student.stuClass).all()
-
+                    if (
+                        count == 0
+                        or re.search(
+                            r"[A-Z]+", tmpDict["classNameList"][count - 1]
+                        ).group()
+                        != re.search(r"[A-Z]+", className).group()
+                    ):
+                        tmpDictMajor["classNameList"].append(
+                            re.search(r"[A-Z]+", className).group()
+                        )
+                        tmpDictMajor["failedNum"].append(0)
+                        tmpDictMajor["failedRate"].append(0)
+                        tmpDictMajor["totalNum"].append(0)
+                        lastMajorIndex += 1
+                    res_class = (
+                        db.query(models.Scores)
+                        .join(
+                            models.Students,
+                            models.Scores.stuID == models.Students.stuID,
+                            isouter=True,
+                        )
+                        .filter(
+                            and_(
+                                models.Students.stuClass == className,
+                                models.Scores.term == term,
+                                models.Scores.failed == 1,
+                            )
+                        )
+                        .with_entities(models.Scores.stuID)
+                        .distinct()
+                        .all()
+                    )
                     tmpDict["classNameList"].append(className)
                     tmpDict["failedNum"].append(len(res_class))
-                    tmpDict["failedRate"].append(
-                        float("{:.2f}".format(round(len(res_class) / (grade_class_info["class_nums_student"][str(grade)][className] * 1.0), 4) * 100)))
-                    # 修改班级名
-                    for i in range(len(tmpDict["classNameList"])):
-                        tmp_className = tmpDict["classNameList"][i]
-                        tmp_className = tmp_className.replace('CS', '计科\n')
-                        tmp_className = tmp_className.replace('BSB', '本硕博\n')
-                        tmp_className = tmp_className.replace('IOT', '物联网\n')
-                        tmp_className = tmp_className.replace('ZY', '卓越\n')
-                        tmp_className = tmp_className.replace('XJ', '校交\n')
-                        tmpDict["classNameList"][i] = tmp_className
+                    tmpDictMajor["failedNum"][lastMajorIndex - 1] += len(res_class)
+                    tmpDict["failedRate"].append(0)
+                    tmpDict["totalNum"].append(
+                        grade_class_info["class_nums_student"][str(grade)][className]
+                    )
+                    tmpDictMajor["totalNum"][lastMajorIndex - 1] += grade_class_info[
+                        "class_nums_student"
+                    ][str(grade)][className]
+                    count += 1
 
-                ret.append(tmpDict)
-                
-                if  len(ret) != 0:
-                    # 将计算好的数据写入数据库
-                    for classItem in ret:
-                        classItemQuery = db.query(models.ClassByTermChart).filter(and_(
-                            models.ClassByTermChart.term == classItem['term'], models.ClassByTermChart.grade == str(classItem['grade'])
-                        )).first()
-                        # print("="*50)
-                        print(classItemQuery)
-                        if classItemQuery:
-                            db.query(models.ClassByTermChart).filter(
-                                and_(
-                                    models.ClassByTermChart.term == classItem['term'], 
-                                    models.ClassByTermChart.grade == str(classItem['grade']
-                                )
-                            )).delete()
-                            # db.delete(isInTable)
-                            db.commit()
-                        print("将 班级维度的表数据计算 结果存入数据库 ...")
-                        classItemInsert = models.ClassByTermChart(
-                            term=classItem['term'],
-                            grade=str(classItem['grade']),
-                            classNameList=str(classItem['classNameList']),
-                            failedNum=str(classItem['failedNum']),
-                            failedRate=str(classItem['failedRate'])
+                # 计算不及格率，修改班级名
+                for i in range(len(tmpDict["classNameList"])):
+                    if tmpDict["totalNum"][i] != 0:
+                        tmpDict["failedRate"][i] = round(
+                            tmpDict["failedNum"][i] / tmpDict["totalNum"][i] * 100, 2
                         )
-                        db.add(classItemInsert)
+
+                    tmp_className = tmpDict["classNameList"][i]
+                    if tmp_className == "":
+                        continue
+                    tmp_className = (
+                        re.search(r"[A-Z]+", tmp_className).group()
+                        + "\n"
+                        + (
+                            re.search(r"[0-9]+", tmp_className).group()
+                            if re.search(r"[0-9]+", tmp_className) != None
+                            else ""
+                        )
+                    )
+                    tmp_className = tmp_className.replace("CS", "计科")
+                    tmp_className = tmp_className.replace("BSB", "本硕博(启明)")
+                    tmp_className = tmp_className.replace("BD", "大数据")
+                    tmp_className = tmp_className.replace("IOT", "物联网")
+                    tmp_className = tmp_className.replace("IST", "智能")
+                    tmp_className = tmp_className.replace("ZY", "卓越(创新)")
+                    tmp_className = tmp_className.replace("XJ", "校交")
+                    tmpDict["classNameList"][i] = tmp_className
+                if sum(tmpDict["failedNum"]) != 0:
+                    ret.append(tmpDict)
+
+                for i in range(len(tmpDictMajor["classNameList"])):
+                    if tmpDictMajor["totalNum"][i] != 0:
+                        tmpDictMajor["failedRate"][i] = round(
+                            tmpDictMajor["failedNum"][i]
+                            / tmpDictMajor["totalNum"][i]
+                            * 100,
+                            2,
+                        )
+
+                    tmp_className = tmpDictMajor["classNameList"][i]
+                    if tmp_className == "":
+                        continue
+                    tmp_className = (
+                        re.search(r"[A-Z]+", tmp_className).group()
+                        + "\n"
+                        + (
+                            re.search(r"[0-9]+", tmp_className).group()
+                            if re.search(r"[0-9]+", tmp_className) != None
+                            else ""
+                        )
+                    )
+                    tmp_className = tmp_className.replace("CS", "计科")
+                    tmp_className = tmp_className.replace("BSB", "本硕博(启明)")
+                    tmp_className = tmp_className.replace("BD", "大数据")
+                    tmp_className = tmp_className.replace("IOT", "物联网")
+                    tmp_className = tmp_className.replace("IST", "智能")
+                    tmp_className = tmp_className.replace("ZY", "卓越(创新)")
+                    tmp_className = tmp_className.replace("XJ", "校交")
+                    tmpDictMajor["classNameList"][i] = tmp_className
+                if sum(tmpDictMajor["failedNum"]) != 0:
+                    ret.append(tmpDictMajor)
+
+            if len(ret) != 0:
+                # 将计算好的数据写入数据库
+                for classItem in ret:
+                    classItemQuery = (
+                        db.query(models.ClassByTermChart)
+                        .filter(
+                            and_(
+                                models.ClassByTermChart.term == classItem["term"],
+                                models.ClassByTermChart.grade
+                                == str(classItem["grade"]),
+                                models.ClassByTermChart.type == classItem["type"],
+                            )
+                        )
+                        .first()
+                    )
+                    if classItemQuery:
+                        db.query(models.ClassByTermChart).filter(
+                            and_(
+                                models.ClassByTermChart.term == classItem["term"],
+                                models.ClassByTermChart.grade
+                                == str(classItem["grade"]),
+                                models.ClassByTermChart.type == classItem["type"],
+                            )
+                        ).delete()
                         db.commit()
-                        db.refresh(classItemInsert)
-                    
-                else:
-                    return Response400(msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空")
-        
+                    print("将 班级维度的表数据计算 结果存入数据库 ...")
+                    classItemInsert = models.ClassByTermChart(
+                        term=classItem["term"],
+                        grade=str(classItem["grade"]),
+                        classNameList=str(classItem["classNameList"]),
+                        failedNum=str(classItem["failedNum"]),
+                        failedRate=str(classItem["failedRate"]),
+                        totalNum=str(classItem["totalNum"]),
+                        type=classItem["type"],
+                    )
+                    db.add(classItemInsert)
+                    db.commit()
+                    db.refresh(classItemInsert)
+                state_insert = models.ResultReadState(key=key)
+                db.add(state_insert)
+                db.commit()
+                db.refresh(state_insert)
+
+            else:
+                return Response400(
+                    msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空"
+                )
+
         else:  # 直接读取已经计算好的数据
-            retDb = db.query(models.ClassByTermChart).filter(models.ClassByTermChart.term == str(term)).all()
+            retDb = (
+                db.query(models.ClassByTermChart)
+                .filter(models.ClassByTermChart.term == str(term))
+                .all()
+            )
             ret = []
             for dbItem in retDb:
                 ret.append(
                     {
                         "term": dbItem.term,
                         "grade": dbItem.grade,
-                        "classNameList": eval(dbItem.classNameList) if dbItem.classNameList != '' else [],
-                        "failedNum": eval(dbItem.failedNum) if dbItem.classNameList != '' else [],
-                        "failedRate": eval(dbItem.failedRate)  if dbItem.classNameList != '' else [],
+                        "classNameList": (
+                            eval(dbItem.classNameList)
+                            if dbItem.classNameList != ""
+                            else []
+                        ),
+                        "failedNum": (
+                            eval(dbItem.failedNum) if dbItem.classNameList != "" else []
+                        ),
+                        "failedRate": (
+                            eval(dbItem.failedRate)
+                            if dbItem.classNameList != ""
+                            else []
+                        ),
+                        "totalNum": (
+                            eval(dbItem.totalNum) if dbItem.totalNum != "" else []
+                        ),
+                        "type": dbItem.type,
                     }
                 )
         if len(ret) != 0:
             # 将数据写入 redis
-            await redis_store.setex(redis_key, config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES, json.dumps(ret, ensure_ascii=False))
+            await redis_store.setex(
+                key,
+                config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,
+                json.dumps(ret, ensure_ascii=False),
+            )
         else:
-            return Response400(data="中间结果数据库中暂时无数据，请在文件上传页面切换读取数据方式为从原始数据读取之后再请求")
+            return Response400(
+                data="中间结果数据库中暂时无数据，请在文件上传页面切换读取数据方式为从原始数据读取之后再请求"
+            )
     else:
-        ret = json.loads(await redis_store.get(redis_key))
+        ret = json.loads(await redis_store.get(key))
 
     return Response200(data=ret)

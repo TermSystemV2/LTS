@@ -10,7 +10,7 @@ from .base import Base
 class User(Base):
     """用户"""
     __tablename__ = 'user'
-
+# todo:删除cID,级联
     cID = Column(String(10), primary_key=True,comment="工号")
     cName = Column(String(50), nullable=False, primary_key=True)
     hashed_password = Column(String(200), nullable=False) # 加密的。生成的会比较长

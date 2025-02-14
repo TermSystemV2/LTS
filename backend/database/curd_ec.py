@@ -14,7 +14,7 @@ async def ec_get_info_by_grade_year(db:Session,grade,year):
     :param year:
     :return:
     """
-    res = db.query(models.ExcellentStudyClass).filter(and_(models.ExcellentStudyClass.grade == year,models.ExcellentStudyClass.year==year)).first()
+    res = db.query(models.ExcellentStudyClass).filter(and_(models.ExcellentStudyClass.grade == grade,models.ExcellentStudyClass.year==year)).first()
     return res
 
 async def ec_getYearList(db:Session):
@@ -39,7 +39,7 @@ async def ec_getGradeList(db:Session):
     gradeList = [grade[0] for grade in gradeList]
     gradeList = list(set(gradeList))
     gradeList.sort()
-
+    print(gradeList)
     return gradeList
 
 async def ec_gradeToYear(grade):
@@ -112,13 +112,11 @@ async def ec_get_by_grade(db:Session,grade):
         str(grade):{}
     }
 
-
     for row in res:
-
         res_arr[str(grade)]["grade"+str(row.year - (2000+row.grade))] = {
             "totalClassNum": row.totalClassNum,
             "excellentClassNum": row.excellentClassNum,
-            "excellentRate":(round(row.excellentClassNum*1.0/row.totalClassNum,2)*100) if row.totalClassNum != 0 else 0
+            "excellentRate":(round(row.excellentClassNum*1.0/row.totalClassNum*100,2)) if row.totalClassNum != 0 else 0
         }
 
     return res_arr[str(grade)]

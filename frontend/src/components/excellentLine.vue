@@ -1,6 +1,5 @@
 <template>
     <div ref="excellentLineRef" class="chart">
-
     </div>
 </template>
 
@@ -13,9 +12,7 @@ import { fetchExcellentLineData } from '../api/index';
 const excellentLineRef = ref<HTMLDivElement>()
 onMounted(() => {
     fetchExcellentLineData().then(res => {
-        console.log(res.data);
         let data = res.data.data;
-        console.log(data);
         
         let year = [];
         let series = []
@@ -106,58 +103,6 @@ onMounted(() => {
                 }
             },
             series: series
-            // series: [
-            //     {
-            //         name: '16级',
-            //         type: 'line',
-            //         tooltip: {
-            //             valueFormatter: function (value: string) {
-            //                 return value + ' %';
-            //             }
-            //         },
-            //         data: [20, 32, 10]
-            //     },
-            //     {
-            //         name: '17级',
-            //         type: 'line',
-            //         tooltip: {
-            //             valueFormatter: function (value: string) {
-            //                 return value + ' %';
-            //             }
-            //         },
-            //         data: [20, 82, 91]
-            //     },
-            //     {
-            //         name: '18级',
-            //         type: 'line',
-            //         tooltip: {
-            //             valueFormatter: function (value: string) {
-            //                 return value + ' %';
-            //             }
-            //         },
-            //         data: [50, 32, 20]
-            //     },
-            //     {
-            //         name: '19级',
-            //         type: 'line',
-            //         tooltip: {
-            //             valueFormatter: function (value: string) {
-            //                 return value + ' %';
-            //             }
-            //         },
-            //         data: [20, 32, 30]
-            //     },
-            //     {
-            //         name: '20级',
-            //         type: 'line',
-            //         tooltip: {
-            //             valueFormatter: function (value: string) {
-            //                 return value + ' %';
-            //             }
-            //         },
-            //         data: [82, 93, 90]
-            //     }
-            // ]
         };
         // 绘制图表
         myChart.setOption(option);
@@ -169,7 +114,7 @@ onMounted(() => {
 </script>
 <style scoped>
 .chart {
-    width: 90%;
-    height: 80%;
+    width: 100%;
+    height: 500px;
 }
 </style>

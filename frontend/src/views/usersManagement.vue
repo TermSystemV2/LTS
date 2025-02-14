@@ -2,11 +2,18 @@
 	<div>
 		<div class="container">
 			<div class="handle-box">
-				<el-input v-model="query.name" placeholder="用户名" class="handle-input mr10"></el-input>
-				<el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
-				<el-button type="primary" :icon="Plus" @click="handleAdd">新增用户</el-button>
+				<el-input
+					v-model="query.name"
+					placeholder="用户名"
+					class="handle-input mr10"></el-input>
+				<el-button type="primary" :icon="Search" @click="handleSearch"
+					>搜索</el-button
+				>
+				<el-button type="primary" :icon="Plus" @click="handleAdd"
+					>新增用户</el-button
+				>
 			</div>
-			<el-table :data="tableData" border class="table" ref="multipleTable" header-cell-class-name="table-header">
+			<el-table :data="tableData" border class="table" ref="multipleTable">
 				<el-table-column prop="id" label="ID" width="55" align="center">
 					<template #default="scope">{{ scope.$index + 1 }}</template>
 				</el-table-column>
@@ -31,18 +38,38 @@
 				<el-table-column label="状态" align="center">
 					<template #default="scope">
 						<el-tag
-							:type="scope.row.is_active === true ? 'success' : scope.row.is_active === false ? 'danger' : ''"
-						>
-							{{ scope.row.is_active === true ? '可用' : scope.row.is_active === false ? '禁用' : '' }}
+							:type="
+								scope.row.is_active === true
+									? 'success'
+									: scope.row.is_active === false
+									? 'danger'
+									: ''
+							">
+							{{
+								scope.row.is_active === true
+									? "可用"
+									: scope.row.is_active === false
+									? "禁用"
+									: ""
+							}}
 						</el-tag>
 					</template>
 				</el-table-column>
 				<el-table-column label="操作" width="220" align="center">
 					<template #default="scope">
-						<el-button text :icon="Edit" @click="handleEdit(scope.$index, scope.row)" v-permiss="15">
+						<el-button
+							text
+							:icon="Edit"
+							@click="handleEdit(scope.$index, scope.row)"
+							v-permiss="15">
 							编辑
 						</el-button>
-						<el-button text :icon="Delete" class="red" @click="handleDelete(scope.$index)" v-permiss="16">
+						<el-button
+							text
+							:icon="Delete"
+							class="red"
+							@click="handleDelete(scope.$index)"
+							v-permiss="16">
 							删除
 						</el-button>
 					</template>
@@ -55,8 +82,7 @@
 					:current-page="query.pageIndex"
 					:page-size="query.pageSize"
 					:total="pageTotal"
-					@current-change="handlePageChange"
-				></el-pagination>
+					@current-change="handlePageChange"></el-pagination>
 			</div>
 		</div>
 
@@ -83,7 +109,7 @@
 				</span>
 			</template>
 		</el-dialog>
-        <!-- 添加用户弹出框 -->
+		<!-- 添加用户弹出框 -->
 		<el-dialog title="添加用户" v-model="addVisible" width="30%">
 			<el-form label-width="70px">
 				<el-form-item label="工号">
@@ -107,10 +133,10 @@
 </template>
 
 <script setup lang="ts" name="basetable">
-import { ref, reactive } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Delete, Edit, Search, Plus } from '@element-plus/icons-vue';
-import { fetchUsersData, addUserData } from '../api/index';
+import { ref, reactive } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { Delete, Edit, Search, Plus } from "@element-plus/icons-vue";
+import { fetchUsersData, addUserData } from "../api/index";
 
 interface TableItem {
 	cID: string;
@@ -124,23 +150,23 @@ interface AddUserItem {
 	cName: string;
 	is_active: boolean;
 	is_superuser: boolean;
-	password: string
+	password: string;
 }
 
 const query = reactive({
-	address: '',
-	name: '',
+	address: "",
+	name: "",
 	pageIndex: 1,
-	pageSize: 10
+	pageSize: 10,
 });
 const tableData = ref<TableItem[]>([]);
 const pageTotal = ref(0);
 // 获取表格数据
 const getData = () => {
-	fetchUsersData().then(res => {
+	fetchUsersData().then((res) => {
 		tableData.value = res.data;
 		console.log(tableData.value);
-		
+
 		// pageTotal.value = res.data.pageTotal || 50;
 	});
 };
@@ -160,11 +186,11 @@ const handlePageChange = (val: number) => {
 // 删除操作
 const handleDelete = (index: number) => {
 	// 二次确认删除
-	ElMessageBox.confirm('确定要删除吗？', '提示', {
-		type: 'warning'
+	ElMessageBox.confirm("确定要删除吗？", "提示", {
+		type: "warning",
 	})
 		.then(() => {
-			ElMessage.success('删除成功');
+			ElMessage.success("删除成功");
 			tableData.value.splice(index, 1);
 		})
 		.catch(() => {});
@@ -173,12 +199,12 @@ const handleDelete = (index: number) => {
 // 表格编辑时弹窗和保存
 const editVisible = ref(false);
 let form = reactive<AddUserItem>({
-	cID: '',
-	cName: '',
+	cID: "",
+	cName: "",
 	//默认情况下时可用、非超级用户
 	is_active: true,
 	is_superuser: false,
-	password: ''
+	password: "",
 });
 let idx: number = -1;
 const handleEdit = (index: number, row: any) => {
@@ -200,7 +226,7 @@ const handleAdd = () => {
 };
 const addUser = () => {
 	addVisible.value = false;
-	addUserData(form).then(res => {
+	addUserData(form).then((res) => {
 		console.log(res.data.msg);
 		ElMessage.success(`添加用户成功`);
 		getData();

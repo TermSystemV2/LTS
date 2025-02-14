@@ -21,9 +21,9 @@
 				<div class="login-btn">
 					<el-button type="primary" @click="submitForm(loginFormRef)">登录</el-button>
 				</div>
-				<p class="login-tips">
+				<!-- <p class="login-tips">
 					管理员用户名：admin,密码：123123<br>
-					普通用户名：test4,密码：123456</p>
+					普通用户名：test4,密码：123456</p> -->
 			</el-form>
 		</div>
 	</div>
@@ -75,15 +75,21 @@ const submitForm = (formEl: FormInstance | undefined) => {
 		if (valid) {
 			login(loginForm).then(res=>{
 				console.log(res);
-				localStorage.setItem('token',res.data.access_token)
-				localStorage.setItem('ms_username', loginForm.username);
-				const keys = permiss.defaultList[loginForm.username == 'admin' ? 'admin' : 'user'];
-				permiss.handleSet(keys);
-				localStorage.setItem('ms_keys', JSON.stringify(keys))
-				router.push('/')
-				ElMessage.success('登录成功')
+				if(res.data.code == 200)
+				{
+					localStorage.setItem('token',res.data.access_token)
+					localStorage.setItem('ms_username', loginForm.username);
+					localStorage.setItem('is_superuser', res.data.data.is_superuser);
+					const keys = permiss.defaultList[res.data.data.is_superuser == true ? 'admin' : 'user'];
+					permiss.handleSet(keys);
+					localStorage.setItem('ms_keys', JSON.stringify(keys))
+					router.push('/')
+					ElMessage.success('登录成功')
+				} else
+				ElMessage.error('密码错误或用户名不存在');
 			});
 		} else {
+			console.log("!!!!")
 			ElMessage.error('登录失败');
 			return false;
 		}

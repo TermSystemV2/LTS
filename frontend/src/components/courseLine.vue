@@ -1,6 +1,5 @@
 <template>
     <div ref="courseLineRef" class="chart">
-        <!-- <p>{{ fatherDataName }}</p> -->
     </div>
 </template>
 

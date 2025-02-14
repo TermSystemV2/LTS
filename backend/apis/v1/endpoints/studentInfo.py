@@ -5,9 +5,9 @@ from pyexpat import model
 import re
 from statistics import mode
 
-from fastapi import APIRouter, Request, Response, Depends,status,HTTPException
+from fastapi import APIRouter, Request, Response, Depends, status, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import and_,or_
+from sqlalchemy import and_, or_
 from aioredis import Redis
 
 
@@ -15,258 +15,241 @@ from database.session import get_db
 import models
 import schemas
 from schemas.basic import Response200, Response400
-from database.redis import stuInfo_cache
+from starlette.responses import FileResponse
+from database.redis import stuInfo_cache, course_cache
+from .commonCourse import get_each_grade_class_number
 from core.config import config
 from database.curd_ec import (
-    ec_getCurrentYear, ec_get_by_year, ec_getYearList, ec_get_by_grade,
-    ec_gradeToYear, ec_getGradeList, ec_get_info_by_grade_year
+    ec_getCurrentYear,
+    ec_get_by_year,
+    ec_getYearList,
+    ec_get_by_grade,
+    ec_gradeToYear,
+    ec_getGradeList,
+    ec_get_info_by_grade_year,
 )
+from utils.common import to_pinyin, create_form
 
 stuInfo_router = APIRouter()
 
-@stuInfo_router.get("/studentInfo/grade/")
-async def getStudentInfoByGrade(grade:int,redis_store:Redis = Depends(stuInfo_cache),db:Session = Depends(get_db)):
+
+@stuInfo_router.get("/studentInfo/number")
+async def getEachGradeNumber(
+    db: Session = Depends(get_db), redis_store: Redis = Depends(course_cache)
+):
+    """
+    numberDictList = [
+        {
+            "grade": 20,
+            "total": 480,
+            "major":[
+                {
+                    "key": CS,
+                    "value": 420,
+                    "rate": 0.85
+                }
+                ...
+            ]
+        },
+        ...
+    ]
+    """
+    key = "eachGradeNumber"
+    sqlState = (
+        db.query(models.ResultReadState)
+        .filter(models.ResultReadState.key == key)
+        .first()
+    )
+    redisState = await redis_store.exists(key)
+    if (not sqlState) or redisState == 0:
+        numberDictList = []
+        grade_class_info = await get_each_grade_class_number(db, redis_store)
+        for grade in grade_class_info["grade"].keys():
+            gradeDict = {}
+            gradeDict["grade"] = str(grade)
+            gradeDict["total"] = grade_class_info["grade"][str(grade)]
+            gradeDict["major"] = []
+            for major in grade_class_info["major"].keys():
+                if (
+                    major != "ALL"
+                    and grade_class_info["major"][str(major)][str(grade)] != 0
+                ):
+                    gradeDict["major"].append(
+                        {
+                            "key": major,
+                            "value": grade_class_info["major"][str(major)][str(grade)],
+                            "rate": round(
+                                grade_class_info["major"][str(major)][str(grade)]
+                                / gradeDict["total"]
+                                * 100.0,
+                                2,
+                            ),
+                        }
+                    )
+            numberDictList.append(gradeDict)
+        if not sqlState:
+            state_insert = models.ResultReadState(key=key)
+            db.add(state_insert)
+            db.commit()
+            db.refresh(state_insert)
+        await redis_store.setex(
+            key,
+            config.CLASS_INFO_REDIS_CACHE_EXPIRES,
+            json.dumps(numberDictList, ensure_ascii=False),
+        )
+    else:
+        numberDictList = json.loads(await redis_store.get(key))
+    return Response200(data=numberDictList)
+
+
+@stuInfo_router.post("/studentInfo/grade")
+async def getStudentInfoByGrade(
+    queryItem: schemas.GradeQuery,
+    redis_store: Redis = Depends(stuInfo_cache),
+    db: Session = Depends(get_db),
+):
     """
     请求某个年级的所有不及格学生的信息
     :param grade: 18 19 20 21
     :return:
     """
-    print("[debug] grade {}".format(grade))
-    state = await redis_store.exists("studentInfo_"+str(grade))
-    print("[debug] state: ",state)
-    if state == 0:
-        state_read = db.query(models.ResultReadState).filter(
-        models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
-        if state_read.state:  # 更新数据
-            course_credit_dic = await get_course_credit(db,redis_store,grade)  # 课程:学分
+    grade = int(queryItem.grade)
+    key = "studentInfo_" + str(grade)
+    sqlState = (
+        db.query(models.ResultReadState)
+        .filter(models.ResultReadState.key == key)
+        .first()
+    )
+    redisState = await redis_store.exists(key)
+    if (not sqlState) or redisState == 0:
+        if not sqlState:  # 更新数据
+            course_credit_dict = await get_course_credit(db, grade)  # 课程:学分,类型
             allFailedStudentInfos = []
             # 从score 中获取所有成绩有不及格情况的同学
-            ## 格式为 json
-            stuID_json = await get_failedStuID(db,redis_store)
-            if stuID_json == -1:
-                return Response400(msg="数据库异常")
-            elif stuID_json == -2:
-                return Response400(msg="写入redis异常")
-            stuID_json = json.loads(stuID_json)
-            print(type(stuID_json))
-            # print("stuID_json:{}".format(stuID_json))
-
-            stuID_list = []
-            for stu in stuID_json:
-                if stu["stuGrade"] == str(grade):
-                    stuID_list.append(stu["stuID"])
-            # classNameList = []
+            stuID_list = await get_failedStuID_by_grade(db, grade)
 
             for stuID in stuID_list:
-                dict_stuInfo = await get_stuInfo_by_grade(db,stuID, course_credit_dic, grade)
-                allFailedStudentInfos.append(dict_stuInfo)
-                # classNameList.append(dict_stuInfo["stuClass"])
-            # print(classNameList)
-            # 对结果进行排序
-            allFailedStudentInfos.sort(key=lambda k: (k.get('sumFailedCredit')), reverse=True)
-            index = 1
-            for stuInfo in allFailedStudentInfos:
-                stuInfo["index"] = index
-                index += 1
+                dict_stuInfo = await get_stuInfo_by_grade(
+                    db, stuID, course_credit_dict, grade
+                )
+                if dict_stuInfo["failedSubjectNums"] != 0:
+                    allFailedStudentInfos.append(dict_stuInfo)
+            print(allFailedStudentInfos)
 
             if len(allFailedStudentInfos) != 0:
                 # 将计算好的数据写入到数据库
                 for studentInfoItem in allFailedStudentInfos:
-                        studentInfoQuery = db.query(models.StudentInfo).filter(and_(
-                            models.StudentInfo.grade == str(studentInfoItem['grade']), models.StudentInfo.stuID == studentInfoItem['stuID'])).first()
-                        if studentInfoQuery:
-                            db.query(models.StudentInfo).filter(
-                            and_(
-                                models.StudentInfo.grade == str(studentInfoItem['grade']), 
-                                models.StudentInfo.stuID == studentInfoItem['stuID']
-                                )
-                            ).delete()
-                            # db.delete(isInTable)
-                            db.commit()
-                        print("将 学生信息 计算结果保存到数据库...")
-                        gradeDimInsert = models.StudentInfo(
-                            index=str(studentInfoItem['index']), 
-                            grade=str(grade),
-                            stuID = studentInfoItem['stuID'],
-                            stuName = studentInfoItem['stuName'],
-                            stuClass = studentInfoItem['stuClass'],
-                            term1 = str(studentInfoItem['term1']),
-                            term2 = str(studentInfoItem['term2']),
-                            term3 = str(studentInfoItem['term3']),
-                            term4 = str(studentInfoItem['term4']),
-                            totalWeightedScore = studentInfoItem['totalWeightedScore'],
-                            totalWeightedScoreTerm1 = studentInfoItem['totalWeightedScoreTerm1'],
-                            totalWeightedScoreTerm2 = studentInfoItem['totalWeightedScoreTerm2'],
-                            totalWeightedScoreTerm3 = studentInfoItem['totalWeightedScoreTerm3'],
-                            totalWeightedScoreTerm4 = studentInfoItem['totalWeightedScoreTerm4'],
-                            failedSubjectNamesScores = str(studentInfoItem['failedSubjectNamesScores']),
-                            failedSubjectNames = str(studentInfoItem['failedSubjectNames']),
-                            failedSubjectNums = studentInfoItem['failedSubjectNums'],
-                            sumFailedCredit = studentInfoItem['sumFailedCredit'],
-                            totalFailedCreditTerm = str(studentInfoItem["totalFailedCreditTerm"]),
-                            failedSubjectNumsTerm = str(studentInfoItem['failedSubjectNumsTerm']),
-                            totalWeightedScoreTerm = str(studentInfoItem['totalWeightedScoreTerm']),
-                            selfContent = str(studentInfoItem['selfContent'])
-                        )
-                        db.add(gradeDimInsert)
+                    studentInfoQuery = db.query(models.StudentInfo).filter(models.StudentInfo.stuID == studentInfoItem["stuID"]).first()
+                    if studentInfoQuery:
+                        db.query(models.StudentInfo).filter(models.StudentInfo.stuID == studentInfoItem["stuID"]).delete()
                         db.commit()
-                        db.refresh(gradeDimInsert)
-                # resp_json = json.loads(resp_json)
-                
-                # return Response200(data=allFailedStudentInfos)
+                    sqlInsert = models.StudentInfo(
+                        stuID = studentInfoItem["stuID"],
+                        grade = studentInfoItem["grade"],
+                        stuName = studentInfoItem["stuName"],
+                        stuClass = studentInfoItem["stuClass"],
+                        totalWeightedScore = studentInfoItem["totalWeightedScore"],
+                        failedSubjectNames = studentInfoItem["failedSubjectNames"],
+                        failedSubjectNums = studentInfoItem["failedSubjectNums"],
+                        sumFailedCreditALL = studentInfoItem["sumFailedCreditALL"],
+                        totalCreditALL = studentInfoItem["totalCreditALL"],
+                        sumFailedCreditUnclassified = studentInfoItem["sumFailedCreditUnclassified"],
+                        totalCreditUnclassified = studentInfoItem["totalCreditUnclassified"],
+                        sumFailedCreditPublicCompulsory = studentInfoItem["sumFailedCreditPublicCompulsory"],
+                        totalCreditPublicCompulsory = studentInfoItem["totalCreditPublicCompulsory"],
+                        sumFailedCreditProfessionalCompulsory = studentInfoItem["sumFailedCreditProfessionalCompulsory"],
+                        totalCreditProfessionalCompulsory = studentInfoItem["totalCreditProfessionalCompulsory"],
+                        sumFailedCreditProfessionalElective = studentInfoItem["sumFailedCreditProfessionalElective"],
+                        totalCreditProfessionalElective = studentInfoItem["totalCreditProfessionalElective"],
+                        sumFailedCreditPublicElective = studentInfoItem["sumFailedCreditPublicElective"],
+                        totalCreditPublicElective = studentInfoItem["totalCreditPublicElective"],
+                        failedSubjectNumsTerm = str(studentInfoItem["failedSubjectNumsTerm"]),
+                        totalWeightedScoreTerm = str(studentInfoItem["totalWeightedScoreTerm"]),
+                        totalFailedCreditTerm = str(studentInfoItem["totalFailedCreditTerm"]),
+                        totalCreditExcludePublicElective = str(studentInfoItem["totalCreditExcludePublicElective"]),
+                        totalCreditIncludePublicElective = str(studentInfoItem["totalCreditIncludePublicElective"]),
+                        requiredCreditExcludePublicElective = str(studentInfoItem["requiredCreditExcludePublicElective"]),
+                        requiredCreditIncludePublicElective = str(studentInfoItem["requiredCreditIncludePublicElective"]),
+                        excludePublicElectiveType = str(studentInfoItem["excludePublicElectiveType"]),
+                        includePublicElectiveType = str(studentInfoItem["includePublicElectiveType"]),
+                    )
+                    db.add(sqlInsert)
+                    db.commit()
+                    db.refresh(sqlInsert)
+                state_insert = models.ResultReadState(key=key)
+                db.add(state_insert)
+                db.commit()
+                db.refresh(state_insert)
             else:
-                return Response400(msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空")
-            
+                return Response400(
+                    msg="没有查询到相关数据，请检查查询关键字 or 数据库数据是否为空"
+                )
+
         else:
             # 直接读取已经计算好的数据
-            retDb = db.query(models.StudentInfo).filter(models.StudentInfo.grade == str(grade)).all()
+            retDb: list[models.StudentInfo] = (
+                db.query(models.StudentInfo)
+                .filter(models.StudentInfo.grade == str(grade))
+                .all()
+            )
             allFailedStudentInfos = []
-            # print("="*50)
             for dbItem in retDb:
-                allFailedStudentInfos.append(
-                    {                        
-                        "index" : dbItem.index, 
-                        "grade" : dbItem.grade,
+                allFailedStudentInfos.append({
                         "stuID" : dbItem.stuID,
+                        "grade" : dbItem.grade,
                         "stuName" : dbItem.stuName,
                         "stuClass" : dbItem.stuClass,
-                        "term1" : eval(dbItem.term1) if dbItem.term1 != '' else [],
-                        "term2" : eval(dbItem.term2) if dbItem.term2 != '' else [],
-                        "term3" : eval(dbItem.term3) if dbItem.term3 != '' else [],
-                        "term4" : eval(dbItem.term4) if dbItem.term4 != '' else [],
                         "totalWeightedScore" : dbItem.totalWeightedScore,
-                        "totalWeightedScoreTerm1" : dbItem.totalWeightedScoreTerm1,
-                        "totalWeightedScoreTerm2" : dbItem.totalWeightedScoreTerm2,
-                        "totalWeightedScoreTerm3" : dbItem.totalWeightedScoreTerm3,
-                        "totalWeightedScoreTerm4" : dbItem.totalWeightedScoreTerm4,
-                        "failedSubjectNamesScores" : eval(dbItem.failedSubjectNamesScores) if dbItem.failedSubjectNamesScores != '' else [],
                         "failedSubjectNames" : dbItem.failedSubjectNames,
                         "failedSubjectNums" : dbItem.failedSubjectNums,
-                        "sumFailedCredit" : dbItem.sumFailedCredit,
+                        "sumFailedCreditALL" : dbItem.sumFailedCreditALL,
+                        "totalCreditALL" : dbItem.totalCreditALL,
+                        "sumFailedCreditUnclassified" : dbItem.sumFailedCreditUnclassified,
+                        "totalCreditUnclassified" : dbItem.totalCreditUnclassified,
+                        "sumFailedCreditPublicCompulsory" : dbItem.sumFailedCreditPublicCompulsory,
+                        "totalCreditPublicCompulsory" : dbItem.totalCreditPublicCompulsory,
+                        "sumFailedCreditProfessionalCompulsory" : dbItem.sumFailedCreditProfessionalCompulsory,
+                        "totalCreditProfessionalCompulsory" : dbItem.totalCreditProfessionalCompulsory,
+                        "sumFailedCreditProfessionalElective" : dbItem.sumFailedCreditProfessionalElective,
+                        "totalCreditProfessionalElective" : dbItem.totalCreditProfessionalElective,
+                        "sumFailedCreditPublicElective" : dbItem.sumFailedCreditPublicElective,
+                        "totalCreditPublicElective" : dbItem.totalCreditPublicElective,
                         "failedSubjectNumsTerm" : eval(dbItem.failedSubjectNumsTerm),
                         "totalWeightedScoreTerm" : eval(dbItem.totalWeightedScoreTerm),
                         "totalFailedCreditTerm" : eval(dbItem.totalFailedCreditTerm),
-                        "selfContent" : eval(dbItem.selfContent) if dbItem.selfContent != '' else {}
-                    }
-                )
+                        "totalCreditExcludePublicElective" : dbItem.totalCreditExcludePublicElective,
+                        "totalCreditIncludePublicElective" : dbItem.totalCreditIncludePublicElective,
+                        "requiredCreditExcludePublicElective" : dbItem.requiredCreditExcludePublicElective,
+                        "requiredCreditIncludePublicElective" : dbItem.requiredCreditIncludePublicElective,
+                        "excludePublicElectiveType" : dbItem.excludePublicElectiveType,
+                        "includePublicElectiveType" : dbItem.includePublicElectiveType,
+                    })
         # 将数据写入 redis
-        if(len(allFailedStudentInfos) != 0):
+        if len(allFailedStudentInfos) != 0:
             try:
-                
-                resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
-                await redis_store.setex("studentInfo_"+str(grade),config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,resp_json)
+
+                resp_json = json.dumps(allFailedStudentInfos, ensure_ascii=False)
+                await redis_store.setex(
+                    key,
+                    config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,
+                    resp_json,
+                )
             except Exception as E:
                 logging.error("写入 redis 异常 %s" % E)
 
                 return Response400(msg="写入 redis 异常 %s" % str(E))
         else:
-            return Response400(data="中间结果数据库中暂时无数据，请在文件上传页面切换读取数据方式为从原始数据读取之后再请求")
+            return Response400(
+                data="中间结果数据库中暂时无数据，请在文件上传页面切换读取数据方式为从原始数据读取之后再请求"
+            )
         return Response200(data=allFailedStudentInfos)
     else:
-        resp_data = await redis_store.get("studentInfo_"+str(grade))
-        # print("type(resp_data) ",type(json.loads(resp_data)))
-        if isinstance(resp_data,str):
+        resp_data = await redis_store.get(key)
+        if isinstance(resp_data, str):
             resp_data = json.loads(resp_data)
         return Response200(data=resp_data)
 
-
-@stuInfo_router.post("/studentInfo/query/")
-async def queryStudentInfoByNameOrID(request:Request,queryItem:schemas.StudentInfoQuery,redis_store:Redis = Depends(stuInfo_cache),db:Session = Depends(get_db)):
-    """
-    通过学号或者 姓名查询学生信息
-    :return:
-    """
-    query_stuID = queryItem.stuID # request.args.get("stuID")
-    query_stuName = queryItem.stuName #request.args.get("stuName")
-    course_credit_dic = await get_course_credit(db,redis_store)
-    allFailedStudentInfos = []
-    state_read = db.query(models.ResultReadState).filter(
-    models.ResultReadState.name == config.UPDATE_DATA_NAME).first()
-    if state_read.state:  # 更新数据
-        # 从score 中获取所有成绩有不及格情况的同学
-        ## 格式为 json
-        stuID_json = await get_failedStuID(db,redis_store)
-        if stuID_json == -1:
-            return Response400(code=status.HTTP_500_INTERNAL_SERVER_ERROR,msg="数据库查询异常")
-        elif stuID_json == -2:
-            return Response400(code=status.HTTP_500_INTERNAL_SERVER_ERROR,msg="写入redis异常")
-        stuID_json = json.loads(stuID_json)
-        # 将json转换为list
-        # print("="*50)
-        # print(type(stuID_json))
-        # print("stuID_json:{}".format(stuID_json))
-        # stuID_dict = json.loads(stuID_json)
-        # print(type(stuID_dict))
-        # print("stuID_dict:{}".format(stuID_dict))
-        # stuID_json = list(stuID_json)
-        stuID_list = []
-        for stu in stuID_json:
-            stuID_list.append(stu["stuID"])
-
-        if query_stuID or query_stuName:
-            if query_stuID:
-                pattern = "U[0-9]{9,9}"  # 学号格式验证 U201718703
-                if re.match(pattern, query_stuID) == None:
-                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="输入的学号格式不正确")
-                if query_stuID not in stuID_list:
-                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录")
-            else:
-                # 使用姓名查询
-                query_res = db.query(models.Student).with_entities(models.Student.stuID).filter(models.Student.stuName == query_stuName).first()
-                if query_res[0] not in stuID_list:
-                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录")
-                query_stuID = query_res[0]
-            dict_stuInfo = await get_stuInfo(db,query_stuID, course_credit_dic)
-            allFailedStudentInfos.append(dict_stuInfo)
-            return Response200(data=allFailedStudentInfos)
-            #  print("")
-            # resp_json = json.dumps(allFailedStudentInfos,ensure_ascii=False)
-            # return Response200(data=resp_json)
-
-        return Response400(code=status.HTTP_400_BAD_REQUEST,msg="查询不到该学生信息，请核对后输入")
-    else:
-        # 从已经计算好的数据库中查找
-        if query_stuID or query_stuName:
-            if query_stuID:
-                pattern = "U[0-9]{9,9}"  # 学号格式验证 U201718703
-                if re.match(pattern, query_stuID) == None:
-                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="输入的学号格式不正确")
-                query_res = db.query(models.StudentInfo).filter(models.StudentInfo.stuID == query_stuID).first()
-                if query_res is None:
-                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录，请核对输入")
-            else:
-                # 使用姓名查询
-                query_res = db.query(models.StudentInfo).filter(models.StudentInfo.stuName == query_stuName).first()
-                if query_res is None:
-                    return Response400(code=status.HTTP_400_BAD_REQUEST,msg="该学生在系统中无挂科记录，请核对输入")
-                
-            dbItem = query_res
-            return Response200(data={
-                # "index" : dbItem.index, 
-                "grade" : dbItem.grade,
-                "stuID" : dbItem.stuID,
-                "stuName" : dbItem.stuName,
-                "stuClass" : dbItem.stuClass,
-                "term1" : eval(dbItem.term1) if dbItem.term1 != '' else [],
-                "term2" : eval(dbItem.term2) if dbItem.term2 != '' else [],
-                "term3" : eval(dbItem.term3) if dbItem.term3 != '' else [],
-                "term4" : eval(dbItem.term4) if dbItem.term4 != '' else [],
-                "totalWeightedScore" : dbItem.totalWeightedScore,
-                "totalWeightedScoreTerm1" : dbItem.totalWeightedScoreTerm1,
-                "totalWeightedScoreTerm2" : dbItem.totalWeightedScoreTerm2,
-                "totalWeightedScoreTerm3" : dbItem.totalWeightedScoreTerm3,
-                "totalWeightedScoreTerm4" : dbItem.totalWeightedScoreTerm4,
-                "failedSubjectNamesScores" : eval(dbItem.failedSubjectNamesScores) if dbItem.failedSubjectNamesScores != '' else [],
-                "failedSubjectNames" : dbItem.failedSubjectNames,
-                "failedSubjectNums" : dbItem.failedSubjectNums,
-                "sumFailedCredit" : dbItem.sumFailedCredit,
-                "failedSubjectNumsTerm" : eval(dbItem.failedSubjectNumsTerm),
-                "totalWeightedScoreTerm" : eval(dbItem.totalWeightedScoreTerm),
-                "selfContent" : eval(dbItem.selfContent) if dbItem.selfContent != '' else {}
-            }
-        )
-
-async def get_course_credit(db:Session,redis_store:Redis,grade):
+async def get_course_credit(db: Session, grade):
     """
 
     :return:
@@ -277,23 +260,13 @@ async def get_course_credit(db:Session,redis_store:Redis,grade):
     """
     # 后序优化：将这些数据存在 redis中
     dict_course_credit = {}
-    state = await redis_store.exists("dict_course_credit")
-    if state == 0:
-        couresList = db.query(models.Courses).all()
-        for course in couresList:
-            dict_course_credit[course.courseName] = course.credit
-        await redis_store.setex("dict_course_credit",config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES,json.dumps(dict_course_credit,ensure_ascii=False))
-    else:
-        dict_course_credit = await redis_store.get("dict_course_credit")
-    # print("[debug] dict_course_credit :{}".format(dict_course_credit))
-    # print("dict_course_credit: ", type(dict_course_credit))
-    # print("dict_course_credit ",type())
-    if isinstance(dict_course_credit,dict):
-        return dict_course_credit
-    else:
-        return json.loads(dict_course_credit)
+    courseList: list[models.Courses] = db.query(models.Courses).filter(models.Courses.grade==grade).all()
+    for course in courseList:
+        dict_course_credit[course.courseName] = {"credit": course.credit, "type": course.type}
+    return dict_course_credit
 
-async def get_failedStuID(db:Session,redis_store:Redis):
+
+async def get_failedStuID_by_grade(db: Session, grade):
     """
     获取考试有不及格情况同学的学号信息
     :return:
@@ -308,40 +281,21 @@ async def get_failedStuID(db:Session,redis_store:Redis):
         }
     }
     """
-    # 首先从redis中查
-    state = await redis_store.exists("failedStuID")
-    if state != 0:
-        return await redis_store.get("failedStuID")
-    # 没有读到
-    try:
-        #  查询学号 成绩 < 60, 对查询结果降序排序
-        results = db.query(models.Scores).with_entities(models.Scores.stuID,models.Scores.grade).distinct().filter(models.Scores.score < '60').order_by(models.Scores.stuID.asc())
-    except Exception as E:
-        logging.error(msg="发生异常：{}".format(str(E)))
-        return -1 #jsonify(errno=RET.DATAERR,errmsg="数据库异常")
-    dic_stuID_list = []
-    i = 1
+    #  查询学号 成绩 < 60, 对查询结果降序排序
+    results = (
+        db.query(models.Scores)
+        .with_entities(models.Scores.stuID)
+        .distinct()
+        .filter(models.Scores.score < 60, models.Scores.grade==grade)
+        .order_by(models.Scores.stuID.asc())
+    )
+    stuID_list = []
     for res in results:
-        d = {
-            "stuIndex":i,
-            "stuGrade":res[1],
-            "stuID": res[0]
-        }
-        i += 1
-        dic_stuID_list.append(d)
-    # print("DEBUG get stuid list: ", dic_stuID_list)
-    # 将不及格学生的学号信息存入 redis
-    # dic_stuID_list = dict(errno=RET.OK,errmsg="OK",data=dic_stuID_list)
-    resp_json = json.dumps(dic_stuID_list)
-    try:
-        await redis_store.setex("failedStuID", config.FAILED_STUID_INFO_REDIS_CACHE_EXPIRES, resp_json)
-    except Exception as E:
-        logging.error(msg="发生异常：{}".format(str(E)))
-        return -2
-    print("[debug]resp_json :{}".format(resp_json))
-    return resp_json
+        stuID_list.append(res[0])
+    return stuID_list
 
-async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
+
+async def get_stuInfo_by_grade(db: Session, stuID, course_credit_dic, grade):
     """
 
     :param stuID:
@@ -357,265 +311,283 @@ async def get_stuInfo_by_grade(db:Session,stuID, course_credit_dic,grade):
             "stuID": "stuID",
             "stuName": "stuName",
             "stuClass": "CS1707",
-            "11":{
-                "微积分": "67",
-                "线性代数": "80"
-            },
-            “12”:{
-                "微积分": "67",
-                "线性代数": "80"
-            },
-            "failSubjects": {
-                "微积分": "57",
-                "计算机组成原理": "34"
-            },
-            "totalWeightedScore:totalWeightedScore,
-            "totalWeightedScoreTerm1“:totalWeightedScoreTerm1,
-            "totalWeightedScoreTerm3":totalWeightedScoreTerm3,
-            "totalWeightedScoreTerm4":totalWeightedScoreTerm4.
-            "totalFailedCreditTerm":totalFailedCreditTerm
+            ...
         }
         """
-    # print(course_credit_dic)
-    term1, term2, term3, term4 = {}, {}, {}, {}
-    totalFailedCreditTerm = [0,0,0,0]
-    failedSubjectdict = {}
-    failedSubjectdict["stuID"] = stuID
-    stuClass = db.query(models.Student).filter(models.Student.stuID == stuID).with_entities(models.Student.stuClass, models.Student.stuName).first()
-    # print("stuClass: ",stuClass,stuID)
-    failedSubjectdict["stuName"] = stuClass[1]
-    failedSubjectdict["stuClass"] = stuClass[0]
-    # print("="*50)
-    # print(stuID," ",grade)
-    # print("="*50)
-    scoreList = db.query(models.Scores).filter(and_(models.Scores.stuID == stuID,models.Scores.grade == grade)).with_entities(models.Scores.courseName,models.Scores.score,models.Scores.term).all()
-    # print("="*50)
-    # for sc in scoreList:
-    #     print(sc)
-    # print("="*50)
-    credit1, credit2, credit3, credit4 = 0.0, 0.0, 0.0, 0.0 # 每学年所有课程的学分
-    failedCredit1, failedCredit2, failedCredit3, failedCredit4 = 0.0, 0.0, 0.0, 0.0 # 每学年所有课程的学分
-    sumScore1, sumScore2, sumScore3, sumScore4 = 0.0, 0.0, 0.0, 0.0
-    failedSubjectNamesScores = {}
-    sumFailedCredit = 0.0
-    failedSubjectNumsTerm1, failedSubjectNumsTerm2, failedSubjectNumsTerm3, failedSubjectNumsTerm4 = 0, 0, 0, 0
-    # courseName,score,term
-    # print(course_credit_dic)
-    for sc in scoreList:
-        # print(sc.courseName,sc.score,sc.term)
-        # if not isinstance(sc.score,int):
-        #     continue
-        # print("+"*20)
-        # print(sc.to_dic())
-        # print("+"*20)
-        if sc[2] == 11 or sc[2] == 12:
-            term1[sc[0]] = sc[1]
-            sumScore1 += (sc[1] * course_credit_dic[sc[0]])
-            credit1 += (course_credit_dic[sc[0]])
-            if sc[1] < 60:
-                failedSubjectNumsTerm1 += 1
-                failedCredit1 += course_credit_dic[sc[0]]
-        elif sc[2] == 21 or sc[2] == 22:
-            # print("="*20)
-            # print(sc)
-            # print("couse_credict ",type(course_credit_dic))
-            # print(type(sc[0]))
-            # print(type(course_credit_dic[sc[0]]))
-            # print(type(sc[1]))
-            # print("="*20)
-            term2[sc[0]] = sc[1]
-            sumScore2 += (sc[1] * course_credit_dic[sc[0]])
-            credit2 += (course_credit_dic[sc[0]])
-            if sc[1] < 60:
-                failedSubjectNumsTerm2 += 1
-                failedCredit2 += course_credit_dic[sc[0]]
-        elif sc[2] == 31 or sc[2] == 32:
-            term3[sc[0]] = sc[1]
-            sumScore3 += (sc[1] * course_credit_dic[sc[0]])
-            credit3 += (course_credit_dic[sc[0]])
-            if sc[1] < 60:
-                failedSubjectNumsTerm3 += 1
-                failedCredit3 += course_credit_dic[sc[0]]
-            # print(sc.courseName,course_credit_dic[sc.courseName])
-        elif sc[2] == 41 or sc[2] == 42:
-            term4[sc[0]] = sc[1]
-            sumScore4 += (sc[1] * course_credit_dic[sc[0]])
-            credit4 += (course_credit_dic[sc[0]])
-            if sc[1] < 60:
-                failedSubjectNumsTerm4 += 1
-                failedCredit4 += course_credit_dic[sc[0]]
-        if sc[1] < 60:
-            failedSubjectNamesScores[sc[0]] = sc[1]
-            sumFailedCredit += course_credit_dic[sc[0]]
-
-    totalScore = (sumScore1 + sumScore2 + sumScore3 + sumScore4)
-    totalCredit = (credit1 + credit2 + credit3 + credit4)
+    failedStudentDict = {}
+    failedStudentDict["stuID"] = stuID
+    failedStudentDict["grade"] = grade
+    res: models.Students = db.query(models.Students).filter(models.Students.stuID==stuID).first()
+    failedStudentDict["stuName"] = res.stuName
+    failedStudentDict["stuClass"] = res.stuClass
+    failedStudentDict["totalWeightedScore"] = 0.0 # 只计算type=1,2,3
+    failedStudentDict["failedSubjectNames"] = ""
+    failedStudentDict["failedSubjectNums"] = 0
     
-    totalWeightedScore, totalWeightedScoreTerm1, totalWeightedScoreTerm2, totalWeightedScoreTerm3, totalWeightedScoreTerm4 = 0, 0, 0, 0, 0
-    if totalCredit != 0.0:
-        totalWeightedScore = (totalScore) / (totalCredit * 1.0)
-    if credit1 != 0.0:
-        totalWeightedScoreTerm1 = sumScore1 / (credit1 * 1.0)
-    if credit2 != 0.0:
-        totalWeightedScoreTerm2 = sumScore2 / (credit2 * 1.0)
-    if credit3 != 0.0:
-        totalWeightedScoreTerm3 = sumScore3 / (credit3 * 1.0)
-    if credit4 != 0.0:
-        totalWeightedScoreTerm4 = sumScore4 / (credit4 * 1.0)
+    # 全部
+    failedStudentDict["sumFailedCreditALL"] = 0.0
+    failedStudentDict["totalCreditALL"] = 0.0
+    # type=0 未分类
+    failedStudentDict["sumFailedCreditUnclassified"] = 0.0
+    failedStudentDict["totalCreditUnclassified"] = 0.0
+    # type=1 公共必修
+    failedStudentDict["sumFailedCreditPublicCompulsory"] = 0.0
+    failedStudentDict["totalCreditPublicCompulsory"] = 0.0
+    # type=2 专业必修
+    failedStudentDict["sumFailedCreditProfessionalCompulsory"] = 0.0
+    failedStudentDict["totalCreditProfessionalCompulsory"] = 0.0
+    # type=3 专业选修
+    failedStudentDict["sumFailedCreditProfessionalElective"] = 0.0
+    failedStudentDict["totalCreditProfessionalElective"] = 0.0
+    # type=4 公共选修
+    failedStudentDict["sumFailedCreditPublicElective"] = 0.0
+    failedStudentDict["totalCreditPublicElective"] = 0.0
+    
+    # 每学年挂科数量
+    failedStudentDict["failedSubjectNumsTerm"] = []  
+    # 每学加权平均分
+    failedStudentDict["totalWeightedScoreTerm"] = []
+    failedStudentDict["totalFailedCreditTerm"] = []
+    
+    failedCourseList = []
+    totalWeightCredit = 0.0
+    totalWeightCreditTerm = 0.0
+    
+    failedStudentDict["totalCreditExcludePublicElective"] = 0.0
+    failedStudentDict["totalCreditIncludePublicElective"] = 0.0
+    failedStudentDict["requiredCreditExcludePublicElective"] = 0.0
+    failedStudentDict["requiredCreditIncludePublicElective"] = 0.0
+    
+    failedStudentDict["excludePublicElectiveType"] = 0
+    failedStudentDict["includePublicElectiveType"] = 0
+    
+    termList = ["11", "12", "21", "22", "31", "32", "41", "42"]
+    for term in termList:
+        scoreList: list[models.Scores] = db.query(models.Scores).filter(models.Scores.stuID==stuID, models.Scores.term==term).all()
+        if not scoreList:
+            continue
+        failedStudentDict["failedSubjectNumsTerm"].append(0)
+        failedStudentDict["totalWeightedScoreTerm"].append(0.0)
+        failedStudentDict["totalFailedCreditTerm"].append(0.0)
+        totalWeightCreditTerm = 0.0
+        for score in scoreList:
+            courseInfo = course_credit_dic[score.courseName]
+            if score.score < 60:
+                failedCourseList.append(score.courseName)
+                failedStudentDict["sumFailedCreditALL"] += courseInfo["credit"]
+                if courseInfo["type"] in [1, 2]:
+                    failedStudentDict["failedSubjectNums"] += 1
+                    failedStudentDict["failedSubjectNumsTerm"][-1] += 1
+                    failedStudentDict["totalFailedCreditTerm"][-1] += courseInfo["credit"]
+                if courseInfo["type"] == 0:
+                    failedStudentDict["sumFailedCreditUnclassified"] += courseInfo["credit"]
+                elif courseInfo["type"] == 1:
+                    failedStudentDict["sumFailedCreditPublicCompulsory"] += courseInfo["credit"]
+                elif courseInfo["type"] == 2:
+                    failedStudentDict["sumFailedCreditProfessionalCompulsory"] += courseInfo["credit"]
+                elif courseInfo["type"] == 3:
+                    failedStudentDict["sumFailedCreditProfessionalElective"] += courseInfo["credit"]
+                elif courseInfo["type"] == 4:
+                    failedStudentDict["sumFailedCreditPublicElective"] += courseInfo["credit"]
+            else:
+                failedStudentDict["totalCreditALL"] += courseInfo["credit"]
+                if courseInfo["type"] in [1, 2, 3]:
+                    failedStudentDict["totalCreditExcludePublicElective"] += courseInfo["credit"]
+                if courseInfo["type"] in [1, 2, 3, 4]:
+                    failedStudentDict["totalCreditIncludePublicElective"] += courseInfo["credit"]
+                if courseInfo["type"] == 0:
+                    failedStudentDict["totalCreditUnclassified"] += courseInfo["credit"]
+                elif courseInfo["type"] == 1:
+                    failedStudentDict["totalCreditPublicCompulsory"] += courseInfo["credit"]
+                elif courseInfo["type"] == 2:
+                    failedStudentDict["totalCreditProfessionalCompulsory"] += courseInfo["credit"]
+                elif courseInfo["type"] == 3:
+                    failedStudentDict["totalCreditProfessionalElective"] += courseInfo["credit"]
+                elif courseInfo["type"] == 4:
+                    failedStudentDict["totalCreditPublicElective"] += courseInfo["credit"]
 
-    failedSubjectdict['grade'] = grade
-    failedSubjectdict["term1"] = term1
-    failedSubjectdict["term2"] = term2
-    failedSubjectdict["term3"] = term3
-    failedSubjectdict["term4"] = term4
-    failedSubjectdict["totalWeightedScore"] = round(totalWeightedScore, 2)
-    failedSubjectdict["totalWeightedScoreTerm1"] = round(totalWeightedScoreTerm1, 2)
-    failedSubjectdict["totalWeightedScoreTerm2"] = round(totalWeightedScoreTerm2, 2)
-    failedSubjectdict["totalWeightedScoreTerm3"] = round(totalWeightedScoreTerm3, 2)
-    failedSubjectdict["totalWeightedScoreTerm4"] = round(totalWeightedScoreTerm4, 2)
-    failedSubjectdict["failedSubjectNamesScores"] = failedSubjectNamesScores
-    failedSubjectdict["failedSubjectNames"] = ",".join([key for key in failedSubjectNamesScores])
-    failedSubjectdict["failedSubjectNums"] = len(failedSubjectNamesScores)
-    failedSubjectdict["sumFailedCredit"] = sumFailedCredit
-    failedSubjectdict["failedSubjectNumsTerm"] = [failedSubjectNumsTerm1, failedSubjectNumsTerm2,
-                                                  failedSubjectNumsTerm3, failedSubjectNumsTerm4]
-    failedSubjectdict["totalWeightedScoreTerm"] = [round(totalWeightedScoreTerm1, 2), round(totalWeightedScoreTerm2, 2),
-                                                   round(totalWeightedScoreTerm3, 2), round(totalWeightedScoreTerm4, 2)]
-    failedSubjectdict["totalFailedCreditTerm"] = [failedCredit1,failedCredit2,failedCredit3,failedCredit4]
-    # 获取其个人评价
-    stuAnalysisInfo = db.query(models.StuAnalysis).filter(models.StuAnalysis.stuID == stuID, models.StuAnalysis.stuType == 3).all()
+            if courseInfo["type"] in [1, 2, 3]:
+                    failedStudentDict["totalWeightedScore"] += score.score * courseInfo["credit"]
+                    failedStudentDict["totalWeightedScoreTerm"][-1] += score.score * courseInfo["credit"]
+                    totalWeightCredit += courseInfo["credit"]
+                    totalWeightCreditTerm += courseInfo["credit"]
+        if totalWeightCreditTerm != 0.0:
+            failedStudentDict["totalWeightedScoreTerm"][-1] = round(failedStudentDict["totalWeightedScoreTerm"][-1] / totalWeightCreditTerm, 2)
+    if totalWeightCredit != 0.0:
+        failedStudentDict["totalWeightedScore"] = round(failedStudentDict["totalWeightedScore"] / totalWeightCredit, 2)
+    failedCourseList.sort(key=lambda x:to_pinyin(x))
+    for course in failedCourseList:
+        failedStudentDict["failedSubjectNames"] += str(course) + ","
+    failedStudentDict["failedSubjectNames"] = failedStudentDict["failedSubjectNames"].rstrip(',')
+    
+    major = re.search(r"[A-Z]+", failedStudentDict["stuClass"]).group()
+    studentInfoConfig: models.StudentInfoConfig = db.query(models.StudentInfoConfig).filter(models.StudentInfoConfig.grade==grade, models.StudentInfoConfig.major==major).first()
+    if not studentInfoConfig:
+        failedStudentDict["requiredCreditExcludePublicElective"] = 0.0
+        failedStudentDict["requiredCreditIncludePublicElective"] = 0.0
+        failedStudentDict["excludePublicElectiveType"] = 0
+        failedStudentDict["includePublicElectiveType"] = 0
+    else:
+        failedStudentDict["requiredCreditExcludePublicElective"] = studentInfoConfig.requiredCreditExcludePublicElective
+        failedStudentDict["requiredCreditIncludePublicElective"] = studentInfoConfig.requiredCreditIncludePublicElective
+        
+        if failedStudentDict["totalCreditExcludePublicElective"] / failedStudentDict["requiredCreditExcludePublicElective"] < studentInfoConfig.redRate:
+            failedStudentDict["excludePublicElectiveType"] = 3
+        elif failedStudentDict["totalCreditExcludePublicElective"] / failedStudentDict["requiredCreditExcludePublicElective"] < studentInfoConfig.yellowRate:
+            failedStudentDict["excludePublicElectiveType"] = 2
+        else:
+            failedStudentDict["excludePublicElectiveType"] = 1
+        
+        if failedStudentDict["totalCreditIncludePublicElective"] / failedStudentDict["requiredCreditIncludePublicElective"] < studentInfoConfig.redRate:
+            failedStudentDict["includePublicElectiveType"] = 3
+        elif failedStudentDict["totalCreditIncludePublicElective"] / failedStudentDict["requiredCreditIncludePublicElective"] < studentInfoConfig.yellowRate:
+            failedStudentDict["includePublicElectiveType"] = 2
+        else:
+            failedStudentDict["includePublicElectiveType"] = 1
 
-    selfContent = {}
-    if stuAnalysisInfo:
-        for i in range(len(stuAnalysisInfo)):
-            selfContent["term" + str(stuAnalysisInfo[i].term // 10) + "_selfcontent"] = stuAnalysisInfo[i].content1
-    failedSubjectdict["selfContent"] = selfContent
-    # print()
-    # print(sumScore3, credit3)
-    return failedSubjectdict
-    # return jsonify(errno=RET.OK,errmsg="OK")
+    # # 获取其个人评价
+    # stuAnalysisInfo = (
+    #     db.query(models.StuAnalysis)
+    #     .filter(models.StuAnalysis.stuID == stuID, models.StuAnalysis.stuType == 3)
+    #     .all()
+    # )
 
-async def get_stuInfo(db:Session,stuID,course_credit_dic):
-    """
-    根据学号，找到这个学生需要的所有信息
-    :param stuID:
-    :return:
-    {
-        "stuID": "stuID",
-        "stuName": "stuName",
-        "stuClass": "CS1707",
-        "11":{
-            "微积分": "67",
-            "线性代数": "80"
-        },
-        “12”:{
-            "微积分": "67",
-            "线性代数": "80"
-        },
-        "failSubjects": {
-            "微积分": "57",
-            "计算机组成原理": "34"
-        },
-        "totalWeightedScore:totalWeightedScore,
-        "totalWeightedScoreTerm1“:totalWeightedScoreTerm1,
-        "totalWeightedScoreTerm3":totalWeightedScoreTerm3,
-        "totalWeightedScoreTerm4":totalWeightedScoreTerm4
-    }
-    """
-    # print(course_credit_dic)
-    term1,term2,term3,term4 = {},{},{},{}
-    failedSubjectdict = {}
-    failedSubjectdict["stuID"] = stuID
-    stuClass = db.query(models.Student).filter(models.Student.stuID==stuID).with_entities(models.Student.stuClass,models.Student.stuName).first()
-    # print("stuClass: ",stuClass,stuID)
-    failedSubjectdict["stuName"] = stuClass[1]
-    failedSubjectdict["stuClass"] = stuClass[0]
-    scoreList = db.query(models.Scores).filter(models.Scores.stuID == stuID).all()
-    credit1,credit2,credit3,credit4 = 0.0,0.0,0.0,0.0
-    sumScore1,sumScore2,sumScore3,sumScore4 = 0.0,0.0,0.0,0.0
-    failedSubjectNamesScores = {}
-    sumFailedCredit = 0.0
-    failedSubjectNumsTerm1,failedSubjectNumsTerm2,failedSubjectNumsTerm3,failedSubjectNumsTerm4 = 0,0,0,0
-    print("="*50)
-    print(type(course_credit_dic))
-    print(course_credit_dic)
-    if(not isinstance(course_credit_dic,dict)):
-        course_credit_dic = json.loads(str(course_credit_dic))
-    print(type(course_credit_dic))
-    for sc in scoreList:
-        # print(sc.courseName,sc.score,sc.term)
-        if sc.term == 11 or sc.term == 12:
-            term1[sc.courseName] = sc.score
-            sumScore1 += (sc.score*course_credit_dic[sc.courseName])
-            credit1 += (course_credit_dic[sc.courseName])
-            if sc.score < 60:
-                failedSubjectNumsTerm1 += 1
-        elif sc.term == 21 or sc.term == 22:
-            term2[sc.courseName] = sc.score
-            sumScore2 += (sc.score*course_credit_dic[sc.courseName])
-            credit2 += (course_credit_dic[sc.courseName])
-            if sc.score < 60:
-                failedSubjectNumsTerm2 += 1
-        elif sc.term == 31 or sc.term == 32:
-            term3[sc.courseName] = sc.score
-            sumScore3 += (sc.score*course_credit_dic[sc.courseName])
-            credit3 += (course_credit_dic[sc.courseName])
-            if sc.score < 60:
-                failedSubjectNumsTerm3 += 1
-            # print(sc.courseName,course_credit_dic[sc.courseName])
-        elif sc.term == 41 or sc.term == 42:
-            term4[sc.courseName] = sc.score
-            sumScore4 += (sc.score*course_credit_dic[sc.courseName])
-            credit4 += (course_credit_dic[sc.courseName])
-            if sc.score < 60:
-                failedSubjectNumsTerm4 += 1
-        if sc.score < 60:
-            failedSubjectNamesScores[sc.courseName] = sc.score
-            sumFailedCredit += course_credit_dic[sc.courseName]
-        pass
+    # selfContent = {}
+    # if stuAnalysisInfo:
+    #     for i in range(len(stuAnalysisInfo)):
+    #         selfContent[
+    #             "term" + str(stuAnalysisInfo[i].term // 10) + "_selfcontent"
+    #         ] = stuAnalysisInfo[i].content1
+    # failedStudentDict["selfContent"] = selfContent
+    
+    return failedStudentDict
 
-    totalScore = (sumScore1+sumScore2+sumScore3+sumScore4)
-    totalCredit = (credit1 + credit2 + credit3 + credit4)
-    totalWeightedScore,totalWeightedScoreTerm1,totalWeightedScoreTerm2,totalWeightedScoreTerm3,totalWeightedScoreTerm4=0,0,0,0,0
-    if totalCredit != 0.0:
-        totalWeightedScore = (totalScore)/(totalCredit*1.0)
-    if credit1 != 0.0:
-        totalWeightedScoreTerm1 = sumScore1/(credit1*1.0)
-    if credit2 != 0.0:
-        totalWeightedScoreTerm2 = sumScore2/(credit2*1.0)
-    if credit3 != 0.0:
-        totalWeightedScoreTerm3 = sumScore3/(credit3*1.0)
-    if credit4 != 0.0:
-        totalWeightedScoreTerm4 = sumScore4/(credit4*1.0)
-
-    failedSubjectdict["term1"] = term1
-    failedSubjectdict["term2"] = term2
-    failedSubjectdict["term3"] = term3
-    failedSubjectdict["term4"] = term4
-    failedSubjectdict["totalWeightedScore"] =round(totalWeightedScore,2)
-    failedSubjectdict["totalWeightedScoreTerm1"] = round(totalWeightedScoreTerm1,2)
-    failedSubjectdict["totalWeightedScoreTerm2"] = round(totalWeightedScoreTerm2,2)
-    failedSubjectdict["totalWeightedScoreTerm3"] = round(totalWeightedScoreTerm3,2)
-    failedSubjectdict["totalWeightedScoreTerm4"] = round(totalWeightedScoreTerm4,2)
-    failedSubjectdict["failedSubjectNamesScores"] = failedSubjectNamesScores
-    failedSubjectdict["failedSubjectNames"] = ",".join([key for key in failedSubjectNamesScores])
-    failedSubjectdict["failedSubjectNums"] = len(failedSubjectNamesScores)
-    failedSubjectdict["sumFailedCredit"] = sumFailedCredit
-    failedSubjectdict["failedSubjectNumsTerm"]=[failedSubjectNumsTerm1,failedSubjectNumsTerm2,failedSubjectNumsTerm3,failedSubjectNumsTerm4]
-    failedSubjectdict["totalWeightedScoreTerm"] = [round(totalWeightedScoreTerm1,2),round(totalWeightedScoreTerm2,2),round(totalWeightedScoreTerm3,2),round(totalWeightedScoreTerm4,2)]
-    # 获取其个人评价
-    stuAnalysisInfo = db.query(models.StuAnalysis).filter(models.StuAnalysis.stuID == stuID,models.StuAnalysis.stuType==3).all()
-
-    selfContent = {}
-    if stuAnalysisInfo:
-        for i in range(len(stuAnalysisInfo)):
-            selfContent["term"+str(stuAnalysisInfo[i].term//10)+"_selfcontent"] = stuAnalysisInfo[i].content1
-    failedSubjectdict["selfContent"] = selfContent
-    # print()
-    # print(sumScore3, credit3)
-    return failedSubjectdict
-    # return jsonify(errno=RET.OK,errmsg="OK")
+@stuInfo_router.post("/studentInfo/setConfig")
+async def set_grade_config(queryItem: schemas.StudentInfoConfig, db:Session = Depends(get_db)):
+    grade = str(queryItem.grade)
+    major = str(queryItem.major)
+    redRate = float(queryItem.redRate)
+    yellowRate = float(queryItem.yellowRate)
+    requiredCreditExcludePublicElective = float(queryItem.requiredCreditExcludePublicElective)
+    requiredCreditIncludePublicElective = float(queryItem.requiredCreditIncludePublicElective)
+    key = "studentInfo_" + str(grade)
+    db.query(models.StudentInfoConfig).filter(models.StudentInfoConfig.grade==grade, models.StudentInfoConfig.major==major).delete()
+    db.query(models.ResultReadState).filter(models.ResultReadState.key==key).delete()
+    db.commit()
+    sql_insert = models.StudentInfoConfig(
+        grade = grade,
+        major = major,
+        redRate = redRate,
+        yellowRate = yellowRate,
+        requiredCreditExcludePublicElective = requiredCreditExcludePublicElective,
+        requiredCreditIncludePublicElective = requiredCreditIncludePublicElective,
+    )
+    db.add(sql_insert)
+    db.commit()
+    db.refresh(sql_insert)
+    return Response200()
 
 
-
-
+@stuInfo_router.post("/studentInfo/download")
+async def download_student_info_file(queryItem: schemas.StudentInfoDownload, db: Session=Depends(get_db)):
+    grade = str(queryItem.grade)
+    red = int(queryItem.red)
+    yellow = int(queryItem.yellow)
+    white = int(queryItem.white)
+    type = int(queryItem.type)
+    fileName = grade + "_grade" + ("_red" if red == True else "") + ("_yellow" if yellow == True else "") + ("_white" if white == True else "") + ("_exclude_publicElective.xlsx" if type == True else "_include_publicElective.xlsx") 
+    redItem = []
+    yellowItem = []
+    whiteItem = []
+    unclassifiedItem = []
+    studentInfoList: list[models.StudentInfo] = db.query(models.StudentInfo).filter(models.StudentInfo.grade==grade).all()
+    studentInfoList.sort(key=lambda x:x.failedSubjectNums * 1000 + x.sumFailedCreditALL, reverse=True)
+    for studentInfo in studentInfoList:
+        studentInfoItem = [
+            studentInfo.stuID, 
+            studentInfo.stuName, 
+            studentInfo.stuClass, 
+            studentInfo.totalWeightedScore, 
+            studentInfo.failedSubjectNums, 
+            studentInfo.sumFailedCreditALL, 
+            studentInfo.totalCreditExcludePublicElective,
+            studentInfo.requiredCreditExcludePublicElective,
+            studentInfo.totalCreditIncludePublicElective,
+            studentInfo.requiredCreditIncludePublicElective,
+            studentInfo.totalCreditALL,
+            studentInfo.failedSubjectNames,
+            studentInfo.sumFailedCreditUnclassified,
+            studentInfo.totalCreditUnclassified,
+            studentInfo.sumFailedCreditPublicCompulsory,
+            studentInfo.totalCreditPublicCompulsory,
+            studentInfo.sumFailedCreditProfessionalCompulsory,
+            studentInfo.totalCreditProfessionalCompulsory,
+            studentInfo.sumFailedCreditProfessionalElective,
+            studentInfo.totalCreditProfessionalElective,
+            studentInfo.sumFailedCreditPublicElective,
+            studentInfo.totalCreditPublicElective,
+            ]
+        if type == True:
+            if studentInfo.excludePublicElectiveType == 3:
+                redItem.append(studentInfoItem)
+            elif studentInfo.excludePublicElectiveType == 2:
+                yellowItem.append(studentInfoItem)
+            elif studentInfo.excludePublicElectiveType == 1:
+                whiteItem.append(studentInfoItem)
+            else:
+                unclassifiedItem.append(studentInfoItem)
+        else:
+            if studentInfo.includePublicElectiveType == 3:
+                redItem.append(studentInfoItem)
+            elif studentInfo.includePublicElectiveType == 2:
+                yellowItem.append(studentInfoItem)
+            elif studentInfo.includePublicElectiveType == 1:
+                whiteItem.append(studentInfoItem)
+            else:
+                unclassifiedItem.append(studentInfoItem)
+    FORM_HEADER = [
+        "学号",
+        "姓名",
+        "班级",
+        "加权平均",
+        "累计不及格科目数(全部)",
+        "累计不及格学分(全部)",
+        "累计已修学分(不含公共选修)",
+        "总应修学分(不含公共选修)",
+        "累计已修学分(含公共选修)",
+        "总应修学分(含公共选修)",
+        "累计已修学分(全部)",
+        "不及格科目具体名称",
+        "不及格学分(未分类)",
+        "已修学分(未分类)",
+        "不及格学分(公共必修)",
+        "已修学分(公共必修)",
+        "不及格学分(专业必修)",
+        "已修学分(专业必修)",
+        "不及格学分(专业选修)",
+        "已修学分(专业选修)",
+        "不及格学分(公共选修)",
+        "已修学分(公共选修)",
+        ]
+    FORM_DATA = []
+    
+    if red == True:
+        FORM_DATA.append(["红牌:","","","","","","","","","","","","","","","","","","","","",""])
+        for item in redItem:
+            FORM_DATA.append(item)
+    if yellow == True:
+        FORM_DATA.append(["黄牌:","","","","","","","","","","","","","","","","","","","","",""])
+        for item in yellowItem:
+            FORM_DATA.append(item)
+    if white == True:
+        FORM_DATA.append(["普通:","","","","","","","","","","","","","","","","","","","","",""])
+        for item in whiteItem:
+            FORM_DATA.append(item)
+    if len(unclassifiedItem) != 0:
+        FORM_DATA.append(["信息缺失:","","","","","","","","","","","","","","","","","","","","",""])
+        for item in unclassifiedItem:
+            FORM_DATA.append(item)
+    create_form(config.SAVE_STUDENT_INFO_FILE_DIR + fileName, FORM_DATA, FORM_HEADER)
+    return FileResponse(
+    path=config.SAVE_STUDENT_INFO_FILE_DIR + fileName, filename=fileName
+    )

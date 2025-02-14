@@ -1,198 +1,94 @@
 <template>
 	<div>
 		<el-row :gutter="20">
-			<el-col :span="8">
-				<el-card shadow="hover" class="mgb20" style="height: 252px">
-					<div class="user-info">
-						<el-avatar :size="120" :src="imgurl" />
-						<div class="user-info-cont">
-							<div class="user-info-name">{{ name }}</div>
-							<div>{{ role }}</div>
-						</div>
-					</div>
-					<div class="user-info-list">
-						上次登录时间：
-						<span>2022-10-01</span>
-					</div>
-					<div class="user-info-list">
-						上次登录地点：
-						<span>东莞</span>
-					</div>
-				</el-card>
-				<el-card shadow="hover" style="height: 252px">
-					<template #header>
-						<div class="clearfix">
-							<span>语言详情</span>
-						</div>
-					</template>
-					Vue
-					<el-progress :percentage="71.3" color="#42b983"></el-progress>JavaScript
-					<el-progress :percentage="24.1" color="#f1e05a"></el-progress>CSS
-					<el-progress :percentage="13.7"></el-progress>HTML
-					<el-progress :percentage="5.9" color="#f56c6c"></el-progress>
-				</el-card>
-			</el-col>
-			<el-col :span="16">
-				<el-row :gutter="20" class="mgb20">
-					<el-col :span="8">
-						<el-card shadow="hover" :body-style="{ padding: '0px' }">
-							<div class="grid-content grid-con-1">
-								<el-icon class="grid-con-icon"><User /></el-icon>
-								<div class="grid-cont-right">
-									<div class="grid-num">1234</div>
-									<div>用户访问量</div>
-								</div>
-							</div>
-						</el-card>
-					</el-col>
-					<el-col :span="8">
-						<el-card shadow="hover" :body-style="{ padding: '0px' }">
-							<div class="grid-content grid-con-2">
-								<el-icon class="grid-con-icon"><ChatDotRound /></el-icon>
-								<div class="grid-cont-right">
-									<div class="grid-num">321</div>
-									<div>系统消息</div>
-								</div>
-							</div>
-						</el-card>
-					</el-col>
-					<el-col :span="8">
-						<el-card shadow="hover" :body-style="{ padding: '0px' }">
-							<div class="grid-content grid-con-3">
-								<el-icon class="grid-con-icon"><Goods /></el-icon>
-								<div class="grid-cont-right">
-									<div class="grid-num">5000</div>
-									<div>商品数量</div>
-								</div>
-							</div>
-						</el-card>
-					</el-col>
-				</el-row>
-				<!-- <el-card shadow="hover" style="height: 403px">
-					<template #header>
-						<div class="clearfix">
-							<span>待办事项</span>
-							<el-button style="float: right; padding: 3px 0" text>添加</el-button>
-						</div>
-					</template>
-
-					<el-table :show-header="false" :data="todoList" style="width: 100%">
-						<el-table-column width="40">
-							<template #default="scope">
-								<el-checkbox v-model="scope.row.status"></el-checkbox>
-							</template>
-						</el-table-column>
-						<el-table-column>
-							<template #default="scope">
-								<div
-									class="todo-item"
-									:class="{
-										'todo-item-del': scope.row.status
-									}"
-								>
-									{{ scope.row.title }}
-								</div>
-							</template>
-						</el-table-column>
-					</el-table>
-				</el-card> -->
+			<el-col :span="24">
+				<template v-for="sub in dataset">
+					<el-row :gutter="20">
+						<template v-for="data in sub">
+							<el-col :span="12">
+								<el-card shadow="hover" :style="{height:data.major.length * 36 + 110 +'px'}">
+									<template #header>
+										<div class="clearfix">
+											<span>{{ data.grade }}级学生 - 共{{ data.total }}人</span>
+										</div>
+									</template>
+									<template v-for="item in data.major">
+										<el-row>
+											<el-col :span="6">
+												{{ item.key }} - {{ item.value }}人
+											</el-col>
+											<el-col :span="18">
+												<el-progress :percentage="item.rate" :text-inside="true" :stroke-width="20"></el-progress>
+											</el-col>
+										</el-row>
+									</template>
+								</el-card>
+							</el-col>
+						</template>
+					</el-row>
+				</template>
 			</el-col>
 		</el-row>
-		<!-- <el-row :gutter="20">
-			<el-col :span="12">
-				<el-card shadow="hover">
-					<schart ref="bar" class="schart" canvasId="bar" :options="options"></schart>
-				</el-card>
-			</el-col>
-			<el-col :span="12">
-				<el-card shadow="hover">
-					<schart ref="line" class="schart" canvasId="line" :options="options2"></schart>
-				</el-card>
-			</el-col>
-		</el-row> -->
 	</div>
 </template>
 
 <script setup lang="ts" name="dashboard">
-import Schart from 'vue-schart';
-import { reactive } from 'vue';
-import imgurl from '../assets/img/img.jpg';
+// import Schart from 'vue-schart';
+import { reactive, ref } from 'vue';
+import { fetchEachGradeNumber } from '../api';
+import { List, number } from 'echarts';
+import { DataBoard } from '@element-plus/icons-vue';
+
+interface majorItem {
+	key: string;
+	value: number;
+	rate: number;
+}
+
+interface listItem {
+	grade: string;
+	total: number;
+	major: majorItem[];
+}
 
 const name = localStorage.getItem('ms_username');
-const role: string = name === 'admin' ? '超级管理员' : '普通用户';
+const role: string = localStorage.getItem('is_superuser') == 'true' ? '超级管理员' : '普通用户';
+const majorMap = new Map<string, string>([["ALL", "全部"], ["CS", "计算机"], ["ACM", "ACM"], ["BSB", "本硕博(启明)"], ["IOT", "物联网"], ["XJ", "校交"], ["ZY", "卓越(创新)"], ["BD", "大数据"], ["IST", "智能"]]);
+const dataset = ref<listItem[][]>([]);
 
-const options = {
-	type: 'bar',
-	title: {
-		text: '最近一周各品类销售图'
-	},
-	xRorate: 25,
-	labels: ['周一', '周二', '周三', '周四', '周五'],
-	datasets: [
-		{
-			label: '家电',
-			data: [234, 278, 270, 190, 230]
-		},
-		{
-			label: '百货',
-			data: [164, 178, 190, 135, 160]
-		},
-		{
-			label: '食品',
-			data: [144, 198, 150, 235, 120]
+const getData = () => {
+	fetchEachGradeNumber().then((res) => {
+		const data = ref<listItem[]>([]);
+		const gradeList: string[] = []
+		const majorSet: Set<string> = new Set()
+		data.value = res.data.data;
+		data.value.sort(((a, b) => { return Number(a.grade) - Number(b.grade) }))
+		for (var item in data.value) {
+			gradeList.push(data.value[item].grade);
+			data.value[item].major.sort((a, b) => { return b.value - a.value })
+			for (var i in data.value[item].major) {
+				majorSet.add(data.value[item].major[i].key)
+				data.value[item].major[i].key = majorMap.get(data.value[item].major[i].key)!
+			}
 		}
-	]
+		for (let i = 0; i < data.value.length; i += 2)
+			dataset.value.push(data.value.slice(i, i + 2));
+		localStorage.setItem("gradeList", JSON.stringify(gradeList))
+		const majorList: string[] = Array.from(majorSet)
+		localStorage.setItem("majorList", JSON.stringify(majorList))
+	})
+	
 };
-const options2 = {
-	type: 'line',
-	title: {
-		text: '最近几个月各品类销售趋势图'
-	},
-	labels: ['6月', '7月', '8月', '9月', '10月'],
-	datasets: [
-		{
-			label: '家电',
-			data: [234, 278, 270, 190, 230]
-		},
-		{
-			label: '百货',
-			data: [164, 178, 150, 135, 160]
-		},
-		{
-			label: '食品',
-			data: [74, 118, 200, 235, 90]
-		}
-	]
-};
-const todoList = reactive([
-	{
-		title: '今天要修复100个bug',
-		status: false
-	},
-	{
-		title: '今天要修复100个bug',
-		status: false
-	},
-	{
-		title: '今天要写100行代码加几个bug吧',
-		status: false
-	},
-	{
-		title: '今天要修复100个bug',
-		status: false
-	},
-	{
-		title: '今天要修复100个bug',
-		status: true
-	},
-	{
-		title: '今天要写100行代码加几个bug吧',
-		status: true
-	}
-]);
+getData();
+
+
 </script>
 
 <style scoped>
+:deep(.el-progress-bar__innerText) {
+	color: black ;
+}
+
 .el-row {
 	margin-bottom: 20px;
 }

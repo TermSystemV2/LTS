@@ -19,7 +19,6 @@ login_router = APIRouter()
 
 
 @login_router.post("/login")
-# async def user_login_withoutToken(request:Request,form_data:schemas.UserLogin,db=Depends(get_db)):
 async def user_login(request:Request,form_data:OAuth2PasswordRequestForm = Depends(),db=Depends(get_db)):
     """
     没有权限认证和 token情形下的用户登陆
@@ -29,23 +28,14 @@ async def user_login(request:Request,form_data:OAuth2PasswordRequestForm = Depen
     :param db:
     :return:
     """
-    # user = db.query(User).filter(User.cID == cID).first()
-    # if form_data.user != ''
-    # else:
-    #     return Response400(msg="请输入正确的用户名")
-    # db = get_db()
-    # user = authenticate_user(db,form_data.username,form_data.password)
     user = authenticate_user(db,form_data.username,form_data.password)
     print("login:{}".format(user))
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
+        return Response400( msg='登陆失败')
     else:
         token = create_access_token({"sub": user.cName})
-        return ResponseToken(data={"token": f"bearer {token}"}, access_token=token)
+        print("token:{}".format(token))
+        return ResponseToken(data={"token": f"bearer {token}", "is_superuser": user.is_superuser}, access_token=token)
 
 @login_router.put("/logout", summary="注销")
 async def user_logout(request: Request, user: User = Depends(deps.get_current_user)):

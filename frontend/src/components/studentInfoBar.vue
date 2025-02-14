@@ -50,10 +50,14 @@ onMounted(() => {
         xAxis: [
             {
                 type: 'category',
-                data: ['第一学年','第二学年','第三学年','第四学年'],
+                data: ['第一学年上半学期','第一学年下半学期','第二学年上半学期','第二学年下半学期','第三学年上半学期','第三学年下半学期','第四学年上半学期','第四学年下半学期'],
                 axisPointer: {
                     type: 'shadow'
-                }
+                },
+                axisLabel: {
+                        show: true,
+                        interval: 0
+                    }
             }
         ],
         yAxis: [
@@ -143,7 +147,7 @@ onMounted(() => {
 </script>
 <style scoped>
 .chart {
-    width: 660px;
-    height: 500px;
+    width: 1200px;
+    height: 400px;
 }
 </style>

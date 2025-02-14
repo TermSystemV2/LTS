@@ -20,7 +20,7 @@ onMounted(() => {
         let year = [];
         let series = []
         for (var key in data) {
-            let year_name = key.slice(2) + '级'
+            let year_name = key + '级'
             year.push(year_name)
             var dict = {
                 name: year_name,
@@ -168,6 +168,7 @@ onMounted(() => {
             }
         };
         var infos = res.data.data;
+        console.log(infos)
         let legends = [];
         let xDatas = [];
         let tempIdx = 0;
@@ -176,29 +177,28 @@ onMounted(() => {
         let seriesItem = {};
         let seriesData = [];
         for(var key in infos) {
-            legends.push(key.slice(2) + '级');
-            tempArray = [];
+            legends.push(key + '级');
+            tempArray = [NaN, NaN, NaN];
             for(var k in infos[key]) {
                 if (k.slice(5)=='1') {
                     tempIdx = 0;
                     tempKey = '大一';
+                    tempArray[0] = infos[key][k].excellentRate
                 } else if (k.slice(5)=='2') {
                     tempIdx = 1;
                     tempKey = '大二';
+                    tempArray[1] = infos[key][k].excellentRate
                 } else if (k.slice(5)=='3') {
                     tempIdx = 2;
                     tempKey = '大三';
-                } else if (k.slice(5)=='4') {
-                    tempIdx = 3;
-                    tempKey = '大四';
+                    tempArray[2] = infos[key][k].excellentRate
                 }
                 if (!xDatas[tempIdx]) { // 如果x轴标签未补充完整
                     xDatas[tempIdx] = tempKey;
                 }
-                tempArray.push(infos[key][k].excellentRate)
             }
             seriesItem = {
-                name: key.slice(2) + '级',
+                name: key + '级',
                 type: 'line',
                 barGap: 0,
                 label: labelOption,
@@ -264,7 +264,6 @@ onMounted(() => {
                 {
                     type: 'value',
                     name: '优良学风班比例',
-                    min: 30,
                     nameTextStyle: {
                         fontSize: '16'
                     },
@@ -282,12 +281,13 @@ onMounted(() => {
         };
         // 绘制图表
         option && myChart.setOption(option);
+        myChart.resize();
     })
 })
 </script>
 <style scoped>
 .chart {
-    width: 90%;
-    height: 80%;
+    width: 100%;
+    height: 500px;
 }
 </style>

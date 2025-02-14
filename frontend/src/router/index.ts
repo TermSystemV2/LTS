@@ -79,6 +79,24 @@ const routes:RouteRecordRaw[] = [
                     keepAlive: true,
                 },
                 component: () => import ( /* webpackChunkName: "charts" */ "../views/classesDimension.vue")
+            },{
+                path: "/majorDimension",
+                name: "majorDimension",
+                meta: {
+                    title: '专业维度',
+                    permiss: '11',
+                    keepAlive: true,
+                },
+                component: () => import ( /* webpackChunkName: "charts" */ "../views/majorDimension.vue")
+            },{
+                path: "/scoreDimension",
+                name: "scoreDimension",
+                meta: {
+                    title: '分数维度',
+                    permiss: '11',
+                    keepAlive: true,
+                },
+                component: () => import ( /* webpackChunkName: "charts" */ "../views/scoreDimension.vue")
             }, {
                 path: "/filesUpload",
                 name: "filesUpload",
@@ -97,6 +115,15 @@ const routes:RouteRecordRaw[] = [
                     keepAlive: true,
                 },
                 component: () => import ( /* webpackChunkName: "charts" */ "../views/studentInformation.vue")
+            }, {
+                path: "/studentInformationS",
+                name: "studentInformationS",
+                meta: {
+                    title: '学生信息(精简)',
+                    permiss: '11',
+                    keepAlive: true,
+                },
+                component: () => import ( /* webpackChunkName: "charts" */ "../views/studentInformation_simple.vue")
             },{
                 path: "/failureAnalysis",
                 name: "failureAnalysis",

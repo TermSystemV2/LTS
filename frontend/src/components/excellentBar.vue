@@ -87,6 +87,7 @@ onMounted(() => {
                 {
                     name: '个数',
                     type: 'bar',
+                    barWidth: 30,
                     smooth: false,
                     tooltip: {
                         valueFormatter: function (value: string) {

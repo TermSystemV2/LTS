@@ -24,15 +24,12 @@ onMounted(() => {
         let failNum = []
         let passRate = []
         for (var key in failData) {
-            grade.push('20'+key + '年')
+            grade.push('20'+key + '级')
             failNum.push(failData[key])
         }
         for (var key in passData) {
             passRate.push(passData[key])
         }
-        // console.log('grade[]:'+grade);
-        // console.log('failNum[]:'+failNum);
-        
         // 基于准备好的dom，初始化echarts实例
         var myChart = echarts.init(courseBarRef.value as HTMLDivElement, 'macarons');
         var option = {
@@ -59,7 +56,7 @@ onMounted(() => {
                 top: 100,
             },
             legend: {
-                data: ['挂科人数', '不及格率比例'],
+                data: ['挂科人数', '及格率比例'],
                 left: 'left',
             },
             xAxis: [
@@ -85,7 +82,7 @@ onMounted(() => {
                 },
                 {
                     type: 'value',
-                    name: '不及格率比例',
+                    name: '及格率比例',
                     nameTextStyle: {
                         fontSize: '16'
                     },
@@ -122,7 +119,7 @@ onMounted(() => {
                     }
                 },
                 {
-                    name: '不及格率比例',
+                    name: '及格率比例',
                     type: 'line',
                     smooth: false,
                     yAxisIndex: 1,

@@ -20,18 +20,18 @@ class UserCreate(UserBase):
     password: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserEdit(UserBase):
     password: t.Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class User(UserBase):
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
