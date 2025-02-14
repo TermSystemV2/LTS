@@ -145,6 +145,7 @@ class Config:
     SAVE_COURSE_FILE_DIR = "./documents/course/"
     SAVE_STUDENT_INFO_FILE_DIR = "./documents/studentInfo/"
     SAVE_FAILED_STUDENT_BY_TERM_FILE_DIR = "./documents/failedStudentByTerm/"
+    SAVE_FAILED_STUDENT_BY_COURSE_FILE_DIR = "./documents/failedStudentExcel/"
 
     # 允许上传的文件
     ALLOWED_EXTENSIONS = {"xlsx"}

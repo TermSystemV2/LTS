@@ -734,3 +734,19 @@ async def operation_student(db: Session, result, stuClass):
     # print("=" * 50)
     # print("finish operation_scores")
     # print("=" * 50)
+
+async def directory_check():
+    if not os.path.exists(config.SAVE_FILE_DIR):
+        os.makedirs(config.SAVE_FILE_DIR)
+    if not os.path.exists(config.SAVE_COURSE_FILE_DIR):
+        os.makedirs(config.SAVE_COURSE_FILE_DIR)
+    if not os.path.exists(config.SAVE_SCORE_FILE_DIR):
+        os.makedirs(config.SAVE_SCORE_FILE_DIR)
+    if not os.path.exists(config.SAVE_FAILED_STUDENT_BY_TERM_FILE_DIR):
+        os.makedirs(config.SAVE_FAILED_STUDENT_BY_TERM_FILE_DIR)
+    if not os.path.exists(config.SAVE_STUDENT_INFO_FILE_DIR):
+        os.makedirs(config.SAVE_STUDENT_INFO_FILE_DIR)
+    if not os.path.exists(config.SAVE_FAILED_STUDENT_BY_COURSE_FILE_DIR):
+        os.makedirs(config.SAVE_FAILED_STUDENT_BY_COURSE_FILE_DIR)
+
+directory_check()
