@@ -10,4 +10,4 @@ cython_debug/
 
 .idea
 .vscode
-.xlsx
+*.xlsx
