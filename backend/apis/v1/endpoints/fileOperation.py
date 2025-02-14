@@ -736,6 +736,8 @@ async def operation_student(db: Session, result, stuClass):
     # print("=" * 50)
 
 async def directory_check():
+    if not os.path.exists(config.SAVE_ROOT_DIR):
+        os.makedirs(config.SAVE_ROOT_DIR)
     if not os.path.exists(config.SAVE_FILE_DIR):
         os.makedirs(config.SAVE_FILE_DIR)
     if not os.path.exists(config.SAVE_COURSE_FILE_DIR):

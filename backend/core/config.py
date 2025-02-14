@@ -140,6 +140,7 @@ class Config:
     CLASS_INFO_REDIS_CACHE_EXPIRES = 7200 * 2
 
     # 上传文件保存的文件夹
+    SAVE_ROOT_DIR = "./documents/"
     SAVE_FILE_DIR = "./documents/grade/"
     SAVE_SCORE_FILE_DIR = "./documents/score/"
     SAVE_COURSE_FILE_DIR = "./documents/course/"
