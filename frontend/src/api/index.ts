@@ -256,6 +256,13 @@ export const dataReduction = () => {
 	});
 };
 
+export const dataReductionPersonal = () => {
+	return request({
+		url: "proxy/apis/v1/xlsxsqlspersonal",
+		method: "get",
+	});
+};
+
 export const fetchEachGradeNumber = () => {
 	return request({
 		url: "proxy/apis/v1/studentInfo/number",

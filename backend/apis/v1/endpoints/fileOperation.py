@@ -180,6 +180,31 @@ async def read_xlsx_to_sql(db: Session = Depends(get_db)):
         await assignCourseType(db, grade)
     return Response200(msg="导入数据库成功")
 
+@file_router.get("/xlsxsqlspersonal")
+async def read_xlsx_to_sql_only_for_person(db: Session = Depends(get_db)):
+    print("read_xlsx")
+    await clear_calculate_data(db)
+    fileNames = os.listdir(config.SAVE_FILE_DIR)
+    fileNames.sort()
+    waitingList = []
+    for name in fileNames:
+        if not re.match(r"[A-Z]{2,3}[0-9]{4}[SA]{1}[0-9]{2}.xlsx", name):
+            waitingList.append(name)
+
+    for name in waitingList:
+        print("Personal Information File Name: " + name)
+        result = pd.read_excel(config.SAVE_FILE_DIR + name)
+        await operation_personal_info(db, result)
+        print("=" * 50)
+        print("finish operate file: " + name)
+        print("=" * 50)
+
+    gradeList = (await get_each_grade_class_number(db, await course_cache()))[
+        "grade"
+    ].keys()
+    for grade in gradeList:
+        await assignCourseType(db, grade)
+    return Response200(msg="导入数据库成功")
 
 @file_router.get("/file/flushData")
 async def flush_ALL_data(db: Session = Depends(get_db)):
@@ -735,7 +760,7 @@ async def operation_student(db: Session, result, stuClass):
     # print("finish operation_scores")
     # print("=" * 50)
 
-async def directory_check():
+def directory_check():
     if not os.path.exists(config.SAVE_ROOT_DIR):
         os.makedirs(config.SAVE_ROOT_DIR)
     if not os.path.exists(config.SAVE_FILE_DIR):

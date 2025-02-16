@@ -32,6 +32,9 @@
 				<el-button class="ml-3" style="color: green" @click="dataReduct">
 				数据整理(全部)
 				</el-button>
+				<el-button class="ml-3" style="color: green" @click="dataReductPersonal">
+				数据整理(仅个人)
+				</el-button>
 			</el-col>
 			<el-col :span="8">
 				课程分类表格:
@@ -203,7 +206,7 @@ import type { UploadUserFile, UploadRawFile, UploadInstance  } from 'element-plu
 import { dateEquals, ElMessage, ElMessageBox } from 'element-plus'
 import type { Action } from 'element-plus'
 import {toRaw} from '@vue/reactivity'
-import {dataReduction, uploadExcellentClassData, flushALLExcellent, downloadCourseFile, courseCalculate, scoreCalculate, setStudentInfoConfig, flushALLDatabase, clearCalculateData} from '../api/index'
+import {dataReduction, dataReductionPersonal, uploadExcellentClassData, flushALLExcellent, downloadCourseFile, courseCalculate, scoreCalculate, setStudentInfoConfig, flushALLDatabase, clearCalculateData} from '../api/index'
 import { Message } from "@element-plus/icons-vue";
 import fileDownload from "js-file-download";
 
@@ -546,6 +549,24 @@ const dataReduct = () => {
 		}
 	).then(() => {
 		dataReduction().then(res => { console.log(res) });
+		ElMessage({
+			type: 'info',
+			message: '请耐心等待',
+		})
+	})
+}
+
+const dataReductPersonal = () => {
+	ElMessageBox.confirm(
+		'大概需要3-5分钟!',
+		'数据整理(仅个人)',
+		{
+		confirmButtonText: '确认',
+		cancelButtonText: '取消',
+		dangerouslyUseHTMLString: true,
+		}
+	).then(() => {
+		dataReductionPersonal().then(res => { console.log(res) });
 		ElMessage({
 			type: 'info',
 			message: '请耐心等待',
