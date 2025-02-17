@@ -319,7 +319,20 @@ async def get_stuInfo_by_grade(db: Session, stuID, course_credit_dic, grade):
     failedStudentDict["grade"] = grade
     res: models.Students = db.query(models.Students).filter(models.Students.stuID==stuID).first()
     failedStudentDict["stuName"] = res.stuName
-    failedStudentDict["stuClass"] = res.stuClass
+    if "BD" in res.stuClass:
+        failedStudentDict["stuClass"] = "大数据" + res.stuClass[-4:]
+    elif "BSB" in res.stuClass:
+        failedStudentDict["stuClass"] = "本硕博" + res.stuClass[-4:]
+    elif "ZY" in res.stuClass:
+        failedStudentDict["stuClass"] = "卓越(创新)" + res.stuClass[-4:]
+    elif "IOT" in res.stuClass:
+        failedStudentDict["stuClass"] = "物联网" + res.stuClass[-4:]
+    elif "XJ" in res.stuClass:
+        failedStudentDict["stuClass"] = "校交" + res.stuClass[-4:]
+    elif "IST" in res.stuClass:
+        failedStudentDict["stuClass"] = "智能" + res.stuClass[-4:]
+    elif "CS" in res.stuClass:
+        failedStudentDict["stuClass"] = "计算机" + res.stuClass[-4:]
     failedStudentDict["totalWeightedScore"] = 0.0 # 只计算type=1,2,3
     failedStudentDict["failedSubjectNames"] = ""
     failedStudentDict["failedSubjectNums"] = 0
@@ -373,9 +386,9 @@ async def get_stuInfo_by_grade(db: Session, stuID, course_credit_dic, grade):
         for score in scoreList:
             courseInfo = course_credit_dic[score.courseName]
             if score.score < 60:
-                failedCourseList.append(score.courseName)
                 failedStudentDict["sumFailedCreditALL"] += courseInfo["credit"]
                 if courseInfo["type"] in [1, 2]:
+                    failedCourseList.append(score.courseName)
                     failedStudentDict["failedSubjectNums"] += 1
                     failedStudentDict["failedSubjectNumsTerm"][-1] += 1
                     failedStudentDict["totalFailedCreditTerm"][-1] += courseInfo["credit"]
@@ -419,8 +432,7 @@ async def get_stuInfo_by_grade(db: Session, stuID, course_credit_dic, grade):
     for course in failedCourseList:
         failedStudentDict["failedSubjectNames"] += str(course) + ","
     failedStudentDict["failedSubjectNames"] = failedStudentDict["failedSubjectNames"].rstrip(',')
-    
-    major = re.search(r"[A-Z]+", failedStudentDict["stuClass"]).group()
+    major = re.search(r"[A-Z]+", res.stuClass).group()
     studentInfoConfig: models.StudentInfoConfig = db.query(models.StudentInfoConfig).filter(models.StudentInfoConfig.grade==grade, models.StudentInfoConfig.major==major).first()
     if not studentInfoConfig:
         failedStudentDict["requiredCreditExcludePublicElective"] = 0.0

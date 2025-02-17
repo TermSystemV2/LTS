@@ -77,23 +77,8 @@
 					<el-table-column type="expand" width="3%">
 						<template v-slot="props">
 							<el-form label-position="center" inline>
-								<el-form-item label="不及格科目具体名称">
+								<el-form-item label="不及格科目具体名称(必修)">
 									<span>{{ props.row.failedSubjectNames }}</span>
-								</el-form-item><br/>
-								<el-form-item label="已修学分(全部)">
-									<span>{{ props.row.totalCreditExcludePublicElective }}</span>
-								</el-form-item><br/>
-								<el-form-item label="已修学分(必修)">
-									<span>{{ props.row.totalCreditPublicCompulsory + props.row.totalCreditProfessionalCompulsory }}</span>
-								</el-form-item>
-								<el-form-item label="已修学分(专业选修)">
-									<span>{{ props.row.totalCreditProfessionalElective }}</span>
-								</el-form-item><br/>
-								<el-form-item label="已修学分(未分类)">
-									<span>{{ props.row.totalCreditUnclassified }}</span>
-								</el-form-item><br/>
-								<el-form-item label="不及格学分(必修)">
-									<span>{{ props.row.sumFailedCreditPublicCompulsory + props.row.sumFailedCreditProfessionalCompulsory }}</span>
 								</el-form-item>
 							</el-form>
 						</template>
@@ -112,25 +97,30 @@
 						width="12%">
 					</el-table-column>
 					<el-table-column
-						prop="failedSubjectNums"
-						label="累计不及格科目数(必修)"
+						prop="totalCreditExcludePublicElective"
+						label="已修学分(总)"
 						width="12%">
 					</el-table-column>
 					<el-table-column
-						label="累计不及格学分(必修)"
+						label="已修学分(必修)"
 						width="12%">
 						<template v-slot="props">
-							{{ props.row.sumFailedCreditPublicCompulsory + props.row.sumFailedCreditProfessionalCompulsory }}
+							{{ props.row.totalCreditPublicCompulsory + props.row.totalCreditProfessionalCompulsory }}
 						</template>
 					</el-table-column>
 					<el-table-column
-						prop="totalCreditExcludePublicElective"
-						label="累计已修学分(不含人文选修)"
+						prop="totalCreditProfessionalElective"
+						label="已修学分(专选)"
 						width="12%">
 					</el-table-column>
 					<el-table-column
-						prop="requiredCreditExcludePublicElective"
-						label="总应修学分(不含人文选修)"
+						prop="totalCreditPublicElective"
+						label="已修学分(人文)"
+						width="12%">
+					</el-table-column>
+					<el-table-column
+						prop="failedSubjectNums"
+						label="累计不及格科目数(必修)"
 						width="12%">
 					</el-table-column>
 				</el-table>

@@ -403,8 +403,11 @@ async def operation_personal_info(db: Session, result: pd.DataFrame):
                     db.commit()
                     db.refresh(course_insert)
                 score = str(row[i * 4 + 1])
+                score = score.split("/")
+                if not pd.isna(row[i * 4 + 3]):
+                    score.append(str(row[i * 4 + 3]))
                 scoreList = []
-                for sub in score.split("/"):
+                for sub in score:
                     sub = str(sub)
                     if sub:
                         if sub.isdigit():
