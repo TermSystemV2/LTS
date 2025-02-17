@@ -262,10 +262,15 @@ async def weight_score_calculate(db: Session = Depends(get_db)):
             major = "IOT"
         elif "校交" in file:
             major = "XJ"
+        elif "智能" in file:
+            major = "IST"
         elif "计算机科学与技术" in file:
             major = "CS"
         else:
             major = "ERR"
+        if major == "ERR":
+            print("文件命名错误!")
+            return Response400(msg="文件命名错误!")
         await operation_weight_score(db, res, major)
     Response200()
 
@@ -346,6 +351,8 @@ async def operation_personal_info(db: Session, result: pd.DataFrame):
         stuClass = "IOT" + stuClassNumber
     elif "校交" in stuClass:
         stuClass = "XJ" + stuClassNumber
+    elif "智能" in stuClass:
+        stuClass = "IST" + stuClassNumber
     elif "计算机科学与技术" in stuClass:
         stuClass = "CS" + stuClassNumber
     else:
@@ -366,7 +373,7 @@ async def operation_personal_info(db: Session, result: pd.DataFrame):
         print("在班级成绩单中未找到匹配学生!")
         return
     for row in result.values[3:]:
-        if (not pd.isna(row[0])) and ("加权成绩" in str(row[0])):
+        if (not pd.isna(row[0])) and ("加权" in str(row[0])):
             break
         for i in range(len(row) // 4):
             if not pd.isna(row[i * 4]):
