@@ -20,6 +20,9 @@
 					>搜索</el-button
 				>
 			</div>
+			<div class="handle-box">
+				<el-button type="primary" @click="downloadStudentInfo(grade)">下载</el-button>
+			</div>
 			<!-- <div class="handle-box">
 				<el-input
 					v-model="studentID"
@@ -179,9 +182,10 @@ import {
 } from "vue";
 import { ElMessage, ElMessageBox, ElBacktop } from "element-plus";
 import { Delete, Edit, Search, Plus, User } from "@element-plus/icons-vue";
-import { fetchStudentInfoData } from "../api/index";
+import { fetchStudentInfoData, downloadStudentInfoFileDetail } from "../api/index";
 import type { TableColumnCtx } from "element-plus/es/components/table/src/table-column/defaults";
 import StudentInfoBar from "../components/studentInfoBar.vue";
+import fileDownload from "js-file-download";
 
 interface TableItem {
 	stuID: string;
@@ -190,6 +194,7 @@ interface TableItem {
 	stuClass: string;
 	totalWeightedScore: number;
 	failedSubjectNames: string;
+	failedSubjectTermNames: string[];
 	failedSubjectNums: number;
 	sumFailedCreditALL: number;
     totalCreditALL: number;
@@ -320,38 +325,15 @@ const openDialog = () => {
 	dialogVisible.value = true;
 };
 
-// // 删除操作
-// const handleDelete = (index: number) => {
-// 	// 二次确认删除
-// 	ElMessageBox.confirm('确定要删除吗？', '提示', {
-// 		type: 'warning'
-// 	})
-// 		.then(() => {
-// 			ElMessage.success('删除成功');
-// 			tableData.value.splice(index, 1);
-// 		})
-// 		.catch(() => {});
-// };
-
-// // 表格编辑时弹窗和保存
-// const editVisible = ref(false);
-// let form = reactive({
-// 	name: '',
-// 	address: ''
-// });
-// let idx: number = -1;
-// const handleEdit = (index: number, row: any) => {
-// 	idx = index;
-// 	form.name = row.name;
-// 	form.address = row.address;
-// 	editVisible.value = true;
-// };
-// const saveEdit = () => {
-// 	editVisible.value = false;
-// 	ElMessage.success(`修改第 ${idx + 1} 行成功`);
-// 	tableData.value[idx].name = form.name;
-// 	tableData.value[idx].address = form.address;
-// };
+const downloadStudentInfo = async (grade: string) => {
+	// console.log(grade)
+	await downloadStudentInfoFileDetail({ grade: grade }).then((res) => {
+		// console.log(res)
+		fileDownload(res.data, grade + "_grade_studentInfo_detail.xlsx")
+	}).catch((err) => {
+		console.log(err)
+	})
+}
 </script>
 
 <style scoped>

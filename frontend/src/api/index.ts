@@ -96,6 +96,15 @@ export const downloadStudentInfoFile = (data: object) => {
 	})
 }
 
+export const downloadStudentInfoFileDetail = (data: object) => {
+	return request({
+		url: "proxy/apis/v1/studentInfo/downloadDetail",
+		method: "post",
+		data: data,
+		responseType: "arraybuffer",
+	})
+}
+
 export const downloadGradeStudentFile = (data: object) => {
 	return request({
 		url: "proxy/apis/v1/grade/download",

@@ -56,11 +56,11 @@
 				</el-select>
 				科不及格
 			</div>
-			<div class="handle-box">
+			<!-- <div class="handle-box">
 				包含人文选修
 				<el-switch v-model="calculateType" @change="changeType()"></el-switch>
 				排除人文选修
-			</div>
+			</div> -->
 			<div class="handle-box">
 				<el-button type="primary" @click="downloadStudentInfo(grade)">下载</el-button>
 			</div>
@@ -114,11 +114,6 @@
 						width="12%">
 					</el-table-column>
 					<el-table-column
-						prop="totalCreditPublicElective"
-						label="已修学分(人文)"
-						width="12%">
-					</el-table-column>
-					<el-table-column
 						prop="failedSubjectNums"
 						label="累计不及格科目数(必修)"
 						width="12%">
@@ -155,6 +150,7 @@ interface TableItem {
 	stuClass: string;
 	totalWeightedScore: number;
 	failedSubjectNames: string;
+	failedSubjectTermNames: string[];
 	failedSubjectNums: number;
 	sumFailedCreditALL: number;
     totalCreditALL: number;
@@ -177,6 +173,7 @@ interface TableItem {
     requiredCreditIncludePublicElective: number;
     excludePublicElectiveType: number;
     includePublicElectiveType: number;
+	index: number;
 }
 
 interface ListItem {
@@ -200,7 +197,7 @@ const showWhite = ref<boolean>(true);
 const loading = ref(true);
 const gradeList = ref<string[]>([]);
 let failNums = ref<number>(1);
-const calculateType = ref<boolean>(false)
+const calculateType = ref<boolean>(true)
 
 const getGradeList = () => {
 	gradeList.value = JSON.parse(localStorage.getItem("gradeList")!);

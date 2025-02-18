@@ -150,6 +150,7 @@ async def getStudentInfoByGrade(
                         stuClass = studentInfoItem["stuClass"],
                         totalWeightedScore = studentInfoItem["totalWeightedScore"],
                         failedSubjectNames = studentInfoItem["failedSubjectNames"],
+                        failedSubjectTermNames = str(studentInfoItem["failedSubjectTermNames"]),
                         failedSubjectNums = studentInfoItem["failedSubjectNums"],
                         sumFailedCreditALL = studentInfoItem["sumFailedCreditALL"],
                         totalCreditALL = studentInfoItem["totalCreditALL"],
@@ -201,6 +202,7 @@ async def getStudentInfoByGrade(
                         "stuClass" : dbItem.stuClass,
                         "totalWeightedScore" : dbItem.totalWeightedScore,
                         "failedSubjectNames" : dbItem.failedSubjectNames,
+                        "failedSubjectTermNames" : eval(dbItem.failedSubjectTermNames),
                         "failedSubjectNums" : dbItem.failedSubjectNums,
                         "sumFailedCreditALL" : dbItem.sumFailedCreditALL,
                         "totalCreditALL" : dbItem.totalCreditALL,
@@ -335,6 +337,7 @@ async def get_stuInfo_by_grade(db: Session, stuID, course_credit_dic, grade):
         failedStudentDict["stuClass"] = "计算机" + res.stuClass[-4:]
     failedStudentDict["totalWeightedScore"] = 0.0 # 只计算type=1,2,3
     failedStudentDict["failedSubjectNames"] = ""
+    failedStudentDict["failedSubjectTermNames"] = []
     failedStudentDict["failedSubjectNums"] = 0
     
     # 全部
@@ -376,12 +379,14 @@ async def get_stuInfo_by_grade(db: Session, stuID, course_credit_dic, grade):
     
     termList = ["11", "12", "21", "22", "31", "32", "41", "42"]
     for term in termList:
+        failedCourseTermList = []
         scoreList: list[models.Scores] = db.query(models.Scores).filter(models.Scores.stuID==stuID, models.Scores.term==term).all()
         if not scoreList:
             continue
         failedStudentDict["failedSubjectNumsTerm"].append(0)
         failedStudentDict["totalWeightedScoreTerm"].append(0.0)
         failedStudentDict["totalFailedCreditTerm"].append(0.0)
+        failedStudentDict["failedSubjectTermNames"].append("")
         totalWeightCreditTerm = 0.0
         for score in scoreList:
             courseInfo = course_credit_dic[score.courseName]
@@ -389,6 +394,7 @@ async def get_stuInfo_by_grade(db: Session, stuID, course_credit_dic, grade):
                 failedStudentDict["sumFailedCreditALL"] += courseInfo["credit"]
                 if courseInfo["type"] in [1, 2]:
                     failedCourseList.append(score.courseName)
+                    failedCourseTermList.append(score.courseName)
                     failedStudentDict["failedSubjectNums"] += 1
                     failedStudentDict["failedSubjectNumsTerm"][-1] += 1
                     failedStudentDict["totalFailedCreditTerm"][-1] += courseInfo["credit"]
@@ -426,6 +432,12 @@ async def get_stuInfo_by_grade(db: Session, stuID, course_credit_dic, grade):
                     totalWeightCreditTerm += courseInfo["credit"]
         if totalWeightCreditTerm != 0.0:
             failedStudentDict["totalWeightedScoreTerm"][-1] = round(failedStudentDict["totalWeightedScoreTerm"][-1] / totalWeightCreditTerm, 2)
+        failedSubjectTermNames = ""
+        failedCourseTermList.sort(key=lambda x:to_pinyin(x))
+        for course in failedCourseTermList:
+            failedSubjectTermNames += str(course) + ","
+        failedStudentDict["failedSubjectTermNames"][-1] = failedSubjectTermNames.rstrip(',')
+    
     if totalWeightCredit != 0.0:
         failedStudentDict["totalWeightedScore"] = round(failedStudentDict["totalWeightedScore"] / totalWeightCredit, 2)
     failedCourseList.sort(key=lambda x:to_pinyin(x))
@@ -514,30 +526,19 @@ async def download_student_info_file(queryItem: schemas.StudentInfoDownload, db:
     unclassifiedItem = []
     studentInfoList: list[models.StudentInfo] = db.query(models.StudentInfo).filter(models.StudentInfo.grade==grade).all()
     studentInfoList.sort(key=lambda x:x.failedSubjectNums * 1000 + x.sumFailedCreditALL, reverse=True)
-    for studentInfo in studentInfoList:
+    for i in range(len(studentInfoList)):
+        studentInfo = studentInfoList[i]
         studentInfoItem = [
+            i + 1,
             studentInfo.stuID, 
             studentInfo.stuName, 
             studentInfo.stuClass, 
-            studentInfo.totalWeightedScore, 
-            studentInfo.failedSubjectNums, 
-            studentInfo.sumFailedCreditALL, 
+            studentInfo.totalWeightedScore,
             studentInfo.totalCreditExcludePublicElective,
-            studentInfo.requiredCreditExcludePublicElective,
-            studentInfo.totalCreditIncludePublicElective,
-            studentInfo.requiredCreditIncludePublicElective,
-            studentInfo.totalCreditALL,
-            studentInfo.failedSubjectNames,
-            studentInfo.sumFailedCreditUnclassified,
-            studentInfo.totalCreditUnclassified,
-            studentInfo.sumFailedCreditPublicCompulsory,
-            studentInfo.totalCreditPublicCompulsory,
-            studentInfo.sumFailedCreditProfessionalCompulsory,
-            studentInfo.totalCreditProfessionalCompulsory,
-            studentInfo.sumFailedCreditProfessionalElective,
+            studentInfo.totalCreditPublicCompulsory + studentInfo.totalCreditProfessionalCompulsory,
             studentInfo.totalCreditProfessionalElective,
-            studentInfo.sumFailedCreditPublicElective,
-            studentInfo.totalCreditPublicElective,
+            studentInfo.failedSubjectNums, 
+            studentInfo.failedSubjectNames,
             ]
         if type == True:
             if studentInfo.excludePublicElectiveType == 3:
@@ -558,47 +559,113 @@ async def download_student_info_file(queryItem: schemas.StudentInfoDownload, db:
             else:
                 unclassifiedItem.append(studentInfoItem)
     FORM_HEADER = [
+        "序号",
         "学号",
         "姓名",
         "班级",
         "加权平均",
-        "累计不及格科目数(全部)",
-        "累计不及格学分(全部)",
-        "累计已修学分(不含公共选修)",
-        "总应修学分(不含公共选修)",
-        "累计已修学分(含公共选修)",
-        "总应修学分(含公共选修)",
-        "累计已修学分(全部)",
+        "已修学分(总)",
+        "已修学分(必修)",
+        "已修学分(专选)",
+        "累计不及格科目数(必修)",
         "不及格科目具体名称",
-        "不及格学分(未分类)",
-        "已修学分(未分类)",
-        "不及格学分(公共必修)",
-        "已修学分(公共必修)",
-        "不及格学分(专业必修)",
-        "已修学分(专业必修)",
-        "不及格学分(专业选修)",
-        "已修学分(专业选修)",
-        "不及格学分(公共选修)",
-        "已修学分(公共选修)",
         ]
     FORM_DATA = []
     
     if red == True:
-        FORM_DATA.append(["红牌:","","","","","","","","","","","","","","","","","","","","",""])
+        FORM_DATA.append(["红牌:","","","","","","","","","",])
         for item in redItem:
             FORM_DATA.append(item)
     if yellow == True:
-        FORM_DATA.append(["黄牌:","","","","","","","","","","","","","","","","","","","","",""])
+        FORM_DATA.append(["黄牌:","","","","","","","","","",])
         for item in yellowItem:
             FORM_DATA.append(item)
     if white == True:
-        FORM_DATA.append(["普通:","","","","","","","","","","","","","","","","","","","","",""])
+        FORM_DATA.append(["普通:","","","","","","","","","",])
         for item in whiteItem:
             FORM_DATA.append(item)
     if len(unclassifiedItem) != 0:
-        FORM_DATA.append(["信息缺失:","","","","","","","","","","","","","","","","","","","","",""])
+        FORM_DATA.append(["信息缺失:","","","","","","","","","",])
         for item in unclassifiedItem:
             FORM_DATA.append(item)
+    index = 1
+    for item in FORM_DATA:
+        if (item[0] == "红牌:" or item[0] == "黄牌:" or item[0] == "普通:" or item[0] == "信息缺失:"):
+            continue
+        item[0] = index
+        index += 1
+    create_form(config.SAVE_STUDENT_INFO_FILE_DIR + fileName, FORM_DATA, FORM_HEADER)
+    return FileResponse(
+    path=config.SAVE_STUDENT_INFO_FILE_DIR + fileName, filename=fileName
+    )
+
+
+@stuInfo_router.post("/studentInfo/downloadDetail")
+async def download_student_info_detail_file(queryItem: schemas.GradeQuery, db: Session=Depends(get_db)):
+    grade = str(queryItem.grade)
+    studentInfoList: list[models.StudentInfo] = db.query(models.StudentInfo).filter(models.StudentInfo.grade==grade).all()
+    studentInfoList.sort(key=lambda x:x.failedSubjectNums * 1000 + x.sumFailedCreditALL, reverse=True)
+    fileName = grade + "_grade_studentInfo_detail.xlsx"
+    FORM_HEADER = [
+        "序号",
+        "学号",
+        "姓名",
+        "班级",
+        "加权平均",
+        "已修学分(总)",
+        "已修学分(必修)",
+        "累计不及格科目数(必修)",
+        "不及格科目具体名称",
+        "第一学期不及格科目数",
+        "第一学期不及格课程名称",
+        "第二学期不及格科目数",
+        "第二学期不及格课程名称",
+        "第三学期不及格科目数",
+        "第三学期不及格课程名称",
+        "第四学期不及格科目数",
+        "第四学期不及格课程名称",
+        "第五学期不及格科目数",
+        "第五学期不及格课程名称",
+        "第六学期不及格科目数",
+        "第六学期不及格课程名称",
+        "第七学期不及格科目数",
+        "第七学期不及格课程名称",
+        "第八学期不及格科目数",
+        "第八学期不及格课程名称",
+        ]
+    FORM_DATA = []
+    for i in range(len(studentInfoList)):
+        studentInfo = studentInfoList[i]
+        failedSubjectTermNames = eval(studentInfo.failedSubjectTermNames)
+        failedSubjectNumsTerm = eval(studentInfo.failedSubjectNumsTerm)
+        
+        FORM_DATA.append([
+            i + 1,
+            studentInfo.stuID,
+            studentInfo.stuName,
+            studentInfo.stuClass,
+            studentInfo.totalWeightedScore,
+            studentInfo.totalCreditExcludePublicElective,
+            studentInfo.totalCreditPublicCompulsory + studentInfo.totalCreditProfessionalCompulsory,
+            studentInfo.failedSubjectNums,
+            studentInfo.failedSubjectNames,
+            failedSubjectNumsTerm[0] if len(failedSubjectNumsTerm) > 0 else "",
+            failedSubjectTermNames[0] if len(failedSubjectNumsTerm) > 0 else "",
+            failedSubjectNumsTerm[1] if len(failedSubjectNumsTerm) > 1 else "",
+            failedSubjectTermNames[1] if len(failedSubjectNumsTerm) > 1 else "",
+            failedSubjectNumsTerm[2] if len(failedSubjectNumsTerm) > 2 else "",
+            failedSubjectTermNames[2] if len(failedSubjectNumsTerm) > 2 else "",
+            failedSubjectNumsTerm[3] if len(failedSubjectNumsTerm) > 3 else "",
+            failedSubjectTermNames[3] if len(failedSubjectNumsTerm) > 3 else "",
+            failedSubjectNumsTerm[4] if len(failedSubjectNumsTerm) > 4 else "",
+            failedSubjectTermNames[4] if len(failedSubjectNumsTerm) > 4 else "",
+            failedSubjectNumsTerm[5] if len(failedSubjectNumsTerm) > 5 else "",
+            failedSubjectTermNames[5] if len(failedSubjectNumsTerm) > 5 else "",
+            failedSubjectNumsTerm[6] if len(failedSubjectNumsTerm) > 6 else "",
+            failedSubjectTermNames[6] if len(failedSubjectNumsTerm) > 6 else "",
+            failedSubjectNumsTerm[7] if len(failedSubjectNumsTerm) > 7 else "",
+            failedSubjectTermNames[7] if len(failedSubjectNumsTerm) > 7 else "",
+        ])
     create_form(config.SAVE_STUDENT_INFO_FILE_DIR + fileName, FORM_DATA, FORM_HEADER)
     return FileResponse(
     path=config.SAVE_STUDENT_INFO_FILE_DIR + fileName, filename=fileName

@@ -281,6 +281,7 @@ class StudentInfo(Base):
     stuClass = Column(String(10), nullable=False)
     totalWeightedScore = Column(Float, nullable=True)
     failedSubjectNames = Column(LONGTEXT, nullable=True)
+    failedSubjectTermNames = Column(LONGTEXT, nullable=True)
     failedSubjectNums = Column(Integer, nullable=True)
     sumFailedCreditALL = Column(Float, nullable=True)  # 全部
     totalCreditALL = Column(Float, nullable=True)
