@@ -264,14 +264,18 @@ async def weight_score_calculate(db: Session = Depends(get_db)):
             major = "XJ"
         elif "智能" in file:
             major = "IST"
-        elif "计算机科学与技术" in file:
+        elif "计算机" in file:
             major = "CS"
         else:
             major = "ERR"
+        print("专业: " + major)
         if major == "ERR":
             print("文件命名错误!")
             return Response400(msg="文件命名错误!")
         await operation_weight_score(db, res, major)
+        print("=" * 50)
+        print("finish operate file: " + file)
+        print("=" * 50)
     Response200()
 
 
@@ -353,7 +357,7 @@ async def operation_personal_info(db: Session, result: pd.DataFrame):
         stuClass = "XJ" + stuClassNumber
     elif "智能" in stuClass:
         stuClass = "IST" + stuClassNumber
-    elif "计算机科学与技术" in stuClass:
+    elif "计算机" in stuClass:
         stuClass = "CS" + stuClassNumber
     else:
         stuClass = "ERR" + stuClassNumber
