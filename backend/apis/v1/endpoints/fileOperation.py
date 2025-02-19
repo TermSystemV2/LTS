@@ -364,18 +364,17 @@ async def operation_personal_info(db: Session, result: pd.DataFrame):
     print("班级:" + stuClass)
     print("姓名:" + stuName)
     print("学号:" + stuID)
-    res = (
-        db.query(models.Students)
-        .filter(
-            models.Students.stuClass == stuClass,
-            models.Students.stuName == stuName,
-            models.Students.stuID == stuID,
-        )
-        .first()
-    )
+    res = db.query(models.Students).filter(models.Students.stuID == stuID).first()
     if not res:
         print("在班级成绩单中未找到匹配学生!")
         return
+    if res.stuName != stuName or res.stuClass != stuClass:
+        stuClass = res.stuClass
+        stuName = res.stuName
+        print("信息部分不匹配! 经修正后如下:")
+        print("班级:" + stuClass)
+        print("姓名:" + stuName)
+        print("学号:" + stuID)
     for row in result.values[3:]:
         if (not pd.isna(row[0])) and ("加权" in str(row[0])):
             break
